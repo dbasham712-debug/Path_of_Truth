@@ -128,19 +128,25 @@ st.set_page_config(page_title="5x5 Weighted Path Solver", page_icon="🧩", layo
 # --- square buttons (CSS) ---
 st.markdown("""
 <style>
+/* Force buttons to render perfectly square regardless of Streamlit column behavior */
 div[data-testid="stButton"] > button {
   width: 100% !important;
-  aspect-ratio: 1 / 1 !important;
-  height: auto !important;
-  min-height: 0 !important;
-  padding: 0 !important;
-  display: inline-flex !important;
+  height: 0 !important;
+  padding-bottom: 100% !important; /* height = width */
+  position: relative !important;
+  overflow: hidden !important;
+  border-radius: 6px !important; /* optional */
+  font-weight: bold !important;
+}
+
+/* Center text/icon inside each button */
+div[data-testid="stButton"] > button > div {
+  position: absolute !important;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  display: flex !important;
   align-items: center !important;
   justify-content: center !important;
-  line-height: 1 !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -357,3 +363,4 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
+
