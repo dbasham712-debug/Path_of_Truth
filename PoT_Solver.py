@@ -1,16 +1,82 @@
-# streamlit app: 5x5 Weighted Path Solver (click-to-setup)
+# streamlit app: 5x5 Weighted Path Solver (clickable graphic)
+# pip install plotly streamlit-plotly-events
 
 from collections import deque
 from typing import Dict, List, Optional, Set, Tuple
+
 import streamlit as st
+import numpy as np
+import plotly.graph_objects as go
+from streamlit_plotly_events import plotly_events
 
-GridPos = Tuple[int, int]
+GridPos = Tuple[int, int]  # (row, col)
 DIRS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-N = 5  # grid size
 
-# ------------------------
+# ====== Grid size & visual sizing ======
+N = 5
+CELL_PX = 70     # pixel size of each cell (visual only)
+GAP_PX  = 6      # pixel gap between cells (visual only)
+
+# ====== Internal value mapping (used by solver) ======
+LOW_VAL  = 1
+MED_VAL  = 3
+HIGH_VAL = 5
+DEFAULT_VAL = 1
+
+# ====== Color/state mapping (display only) ======
+# We'll encode per-cell "state" as ints for a discrete Heatmap:
+# 0 empty, 1 low, 2 med, 3 high, 4 obstacle, 5 start, 6 end
+STATE_EMPTY    = 0
+STATE_LOW      = 1
+STATE_MED      = 2
+STATE_HIGH     = 3
+STATE_OBS      = 4
+STATE_START    = 5
+STATE_END      = 6
+
+STATE_TO_LABEL = {
+    STATE_EMPTY: "Empty",
+    STATE_LOW:   "Low",
+    STATE_MED:   "Med",
+    STATE_HIGH:  "High",
+    STATE_OBS:   "Obstacle",
+    STATE_START: "Start",
+    STATE_END:   "End",
+}
+
+# Colors (hex) for each state (matching your vibe)
+STATE_COLORS = {
+    STATE_EMPTY: "#FFFFFF",   # white
+    STATE_LOW:   "#32CD32",   # limegreen
+    STATE_MED:   "#1E90FF",   # dodgerblue
+    STATE_HIGH:  "#FFD700",   # gold
+    STATE_OBS:   "#FF4D4D",   # red
+    STATE_START: "#00BFFF",   # deepskyblue
+    STATE_END:   "#800080",   # purple
+}
+
+# Build a discrete Plotly colorscale from the mapping above
+# We place flat bands around each integer value (0..6).
+def make_discrete_colorscale():
+    keys = list(range(0, 7))
+    cols = [STATE_COLORS[k] for k in keys]
+    # map ints 0..6 onto 0..1 domain
+    steps = [(k / 6.0) for k in keys]
+    cs = []
+    for i, s in enumerate(steps):
+        col = cols[i]
+        # tiny epsilon band to keep each value flat
+        left = max(0.0, s - 1e-6)
+        right = min(1.0, s + 1e-6)
+        cs.append([left, col])
+        cs.append([right, col])
+    return cs
+
+DISCRETE_CS = make_discrete_colorscale()
+
+# =========================
 # Core grid/solver helpers
-# ------------------------
+# =========================
 def in_bounds(r: int, c: int, n: int = N) -> bool:
     return 0 <= r < n and 0 <= c < n
 
@@ -26,6 +92,7 @@ def reachable(n: int, start: GridPos, end: GridPos,
     blocked = (obstacles | visited) - {start}
     if start in blocked or end in blocked:
         return False
+    from collections import deque
     q = deque([start])
     seen = {start}
     while q:
@@ -61,12 +128,12 @@ def solve_max_value_path(
     values: Dict[GridPos, int],
 ) -> Optional[Tuple[List[GridPos], int]]:
     if start == end:
-        return ([start], values.get(start, 1)) if (start not in obstacles) else None
+        return ([start], values.get(start, DEFAULT_VAL)) if (start not in obstacles) else None
     if start in obstacles or end in obstacles:
         return None
 
     def cell_value(cell: GridPos) -> int:
-        return values.get(cell, 1)
+        return values.get(cell, DEFAULT_VAL)
 
     if not reachable(n, start, end, obstacles, set()):
         return None
@@ -76,7 +143,7 @@ def solve_max_value_path(
 
     best_path: List[GridPos] = []
     best_val: int = -10**12
-    visited: Set[GridPos] = set([start])
+    visited: Set[GridPos] = {start}
 
     def optimistic_bound(cur: GridPos, cur_sum: int) -> int:
         rcells = reachable_cells(n, cur, obstacles, visited)
@@ -87,7 +154,6 @@ def solve_max_value_path(
 
     def dfs(cur: GridPos, path: List[GridPos], cur_sum: int):
         nonlocal best_path, best_val
-
         if not reachable(n, cur, end, obstacles, visited):
             return
         if optimistic_bound(cur, cur_sum) < best_val:
@@ -113,199 +179,202 @@ def solve_max_value_path(
         return None
     return best_path, best_val
 
-
-# --------------
-# Streamlit UI
-# --------------
-st.set_page_config(page_title="5x5 Weighted Path Solver", page_icon="🧩", layout="centered")
-
-# === Pixel-perfect grid sizing ===
-SQUARE_PX = 70   # cell size in px
-GAP_PX    = 6    # gap between cells in px
-N = 5            # grid width
-
-st.markdown(f"""
-<style>
-/* Make every row in the grid a fixed CSS grid instead of flex columns */
-#cellgrid [data-testid="stHorizontalBlock"] {{
-  display: grid !important;
-  grid-template-columns: repeat({{N}}, {{SQUARE_PX}}px) !important;
-  grid-auto-rows: {{SQUARE_PX}}px !important;
-  gap: {{GAP_PX}}px !important;              /* exact gutter you want */
-  justify-content: start !important;         /* pack tightly from left */
-  align-items: start !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}}
-
-/* Ensure Streamlit column wrappers don't add size/spacing */
-#cellgrid [data-testid="column"] {{
-  width: {{SQUARE_PX}}px !important;
-  max-width: {{SQUARE_PX}}px !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  flex: 0 0 {{SQUARE_PX}}px !important;
-}}
-
-/* True square buttons that fill the grid cells, no extra margins */
-#cellgrid [data-testid="stButton"] > button {{
-  width: 100% !important;
-  height: 100% !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  border-radius: 6px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  line-height: 1 !important;
-  white-space: nowrap !important;
-  font-weight: 600 !important;
-}}
-</style>
-""", unsafe_allow_html=True)
-
-
-# --- session state ---
+# =================
+# Session defaults
+# =================
 if "start" not in st.session_state:
-    st.session_state.start = (4, 1)
+    st.session_state.start: GridPos = (4, 1)
 if "end" not in st.session_state:
-    st.session_state.end = (0, 3)
+    st.session_state.end: GridPos = (0, 3)
 if "obstacles" not in st.session_state:
-    st.session_state.obstacles = set()
-if "cell_values" not in st.session_state:
-    st.session_state.cell_values = {}
+    st.session_state.obstacles: Set[GridPos] = set()
+if "cell_states" not in st.session_state:
+    # 2D grid of states for display only
+    st.session_state.cell_states = [[STATE_EMPTY for _ in range(N)] for _ in range(N)]
 if "solution" not in st.session_state:
     st.session_state.solution = None
 if "tool" not in st.session_state:
     st.session_state.tool = "Start"
 
-st.title("5×5 Weighted Path Solver")
-st.caption("Select a tool, click cells to configure, then hit **Solve**.")
+# Initialize state grid with start/end markers (keep them unique)
+def enforce_unique_start_end():
+    # Clear any other start/end before setting
+    sr, sc = st.session_state.start
+    er, ec = st.session_state.end
+    for r in range(N):
+        for c in range(N):
+            if (r, c) == (sr, sc):
+                st.session_state.cell_states[r][c] = STATE_START
+            elif (r, c) == (er, ec):
+                st.session_state.cell_states[r][c] = STATE_END
+            else:
+                # don't override non-start/end states here
+                if st.session_state.cell_states[r][c] in (STATE_START, STATE_END):
+                    st.session_state.cell_states[r][c] = STATE_EMPTY
 
-# --- toolbar (unchanged) ---
-col_tool, col_vals, col_actions = st.columns([1.1, 1.2, 1.2])
+enforce_unique_start_end()
+
+# =============
+# Streamlit UI
+# =============
+st.set_page_config(page_title="5x5 Weighted Path Solver (Clickable Graphic)", page_icon="🧩", layout="centered")
+
+st.title("5×5 Weighted Path Solver (Clickable Graphic)")
+st.caption("Pick a tool, click squares on the grid to configure. Press **Solve** to draw the max-value path.")
+
+# Toolbar
+col_tool, col_actions = st.columns([1.2, 1])
 with col_tool:
     tool = st.radio(
         "Tool",
         ["Start", "End", "Obstacle", "Low", "Med", "High", "Erase"],
         index=["Start", "End", "Obstacle", "Low", "Med", "High", "Erase"].index(st.session_state.tool),
+        horizontal=True,
     )
     st.session_state.tool = tool
 
-with col_vals:
-    low_val = st.number_input("Low", min_value=0, max_value=999, value=2, step=1)
-    med_val = st.number_input("Med", min_value=0, max_value=999, value=4, step=1)
-    high_val = st.number_input("High", min_value=0, max_value=999, value=10, step=1)
-
 with col_actions:
     if st.button("Solve", use_container_width=True):
-        s, e = st.session_state.start, st.session_state.end
-        res = solve_max_value_path(N, s, e, st.session_state.obstacles, st.session_state.cell_values)
+        # Build obstacles and values from cell_states
+        obstacles: Set[GridPos] = set()
+        values: Dict[GridPos, int] = {}
+        for r in range(N):
+            for c in range(N):
+                state = st.session_state.cell_states[r][c]
+                if state == STATE_OBS:
+                    obstacles.add((r, c))
+                elif state == STATE_LOW:
+                    values[(r, c)] = LOW_VAL
+                elif state == STATE_MED:
+                    values[(r, c)] = MED_VAL
+                elif state == STATE_HIGH:
+                    values[(r, c)] = HIGH_VAL
+                # empty/start/end default to 1 unless explicitly set above
+
+        res = solve_max_value_path(
+            N, st.session_state.start, st.session_state.end, obstacles, values
+        )
         st.session_state.solution = res
+
     c1, c2, c3 = st.columns(3)
-    if c1.button("Clear Values"):
-        st.session_state.cell_values = {}
+    if c1.button("Clear Weights"):
+        for r in range(N):
+            for c in range(N):
+                if st.session_state.cell_states[r][c] in (STATE_LOW, STATE_MED, STATE_HIGH):
+                    st.session_state.cell_states[r][c] = STATE_EMPTY
         st.session_state.solution = None
     if c2.button("Clear Obstacles"):
-        st.session_state.obstacles = set()
+        for r in range(N):
+            for c in range(N):
+                if st.session_state.cell_states[r][c] == STATE_OBS:
+                    st.session_state.cell_states[r][c] = STATE_EMPTY
         st.session_state.solution = None
     if c3.button("Clear All (keep S/E)"):
-        st.session_state.obstacles = set()
-        st.session_state.cell_values = {}
+        for r in range(N):
+            for c in range(N):
+                st.session_state.cell_states[r][c] = STATE_EMPTY
+        enforce_unique_start_end()
         st.session_state.solution = None
 
 st.divider()
 
-# --- Path index lookup ---
-path_index = {}
+# =====================
+# Click handling + Plot
+# =====================
+# Build a Z matrix of display states
+z = np.array(st.session_state.cell_states, dtype=int)
+
+fig = go.Figure(
+    data=go.Heatmap(
+        z=z,
+        zmin=0, zmax=6,
+        colorscale=DISCRETE_CS,
+        showscale=False,
+        x=np.arange(N),              # columns
+        y=np.arange(N),              # rows
+        hovertemplate="(%{y}, %{x})<extra></extra>",
+    )
+)
+
+# Make grid lines to look like cells
+fig.update_layout(
+    width=N*CELL_PX + (N-1)*GAP_PX + 40,
+    height=N*CELL_PX + (N-1)*GAP_PX + 40,
+    margin=dict(l=10, r=10, t=10, b=10),
+)
+
+# Put origin at top-left for “matrix” feel
+fig.update_yaxes(autorange="reversed", tickmode="array", tickvals=list(range(N)), ticktext=[str(i) for i in range(N)])
+fig.update_xaxes(tickmode="array", tickvals=list(range(N)), ticktext=[str(i) for i in range(N)])
+
+# Draw solved path as arrows, if available
+fig.update_layout(annotations=[])  # clear
 if st.session_state.solution:
     path, total = st.session_state.solution
-    for i, cell in enumerate(path, start=1):
-        path_index[cell] = i
+    if path:
+        # Add line segments as arrow annotations between cell centers
+        anns = []
+        for i in range(len(path)-1):
+            r1, c1 = path[i]
+            r2, c2 = path[i+1]
+            # centers at (x=c+0.5, y=r+0.5)
+            anns.append(dict(
+                x=c2+0.5, y=r2+0.5, xref="x", yref="y",
+                ax=c1+0.5, ay=r1+0.5, axref="x", ayref="y",
+                showarrow=True, arrowhead=3, arrowsize=1.1, arrowwidth=3, opacity=0.9, arrowcolor="black"
+            ))
+        fig.update_layout(annotations=anns)
 
-# --- click handler ---
-def click_cell(r: int, c: int):
-    st.session_state.solution = None
-    pos = (r, c)
-    tool = st.session_state.tool
-    if tool == "Obstacle":
-        if pos not in (st.session_state.start, st.session_state.end):
-            if pos in st.session_state.obstacles:
-                st.session_state.obstacles.remove(pos)
-            else:
-                st.session_state.obstacles.add(pos)
-        return
-    if tool == "Start":
-        st.session_state.obstacles.discard(pos)
-        if pos == st.session_state.end:
+# Render and capture click
+clicks = plotly_events(
+    fig, click_event=True, hover_event=False, select_event=False, override_height=None, override_width=None, key="grid"
+)
+
+# If user clicked a cell, update its state according to tool
+if clicks:
+    c = int(round(clicks[0]["x"]))
+    r = int(round(clicks[0]["y"]))
+    st.session_state.solution = None  # invalidate on edit
+
+    if st.session_state.tool == "Obstacle":
+        # toggle obstacle (but not on S/E)
+        if (r, c) not in (st.session_state.start, st.session_state.end):
+            st.session_state.cell_states[r][c] = (
+                STATE_EMPTY if st.session_state.cell_states[r][c] == STATE_OBS else STATE_OBS
+            )
+
+    elif st.session_state.tool in ("Low", "Med", "High"):
+        if (r, c) not in (st.session_state.start, st.session_state.end):
+            state_map = {"Low": STATE_LOW, "Med": STATE_MED, "High": STATE_HIGH}
+            st.session_state.cell_states[r][c] = state_map[st.session_state.tool]
+
+    elif st.session_state.tool == "Erase":
+        if (r, c) not in (st.session_state.start, st.session_state.end):
+            st.session_state.cell_states[r][c] = STATE_EMPTY
+
+    elif st.session_state.tool == "Start":
+        # clear old start, set new
+        oldr, oldc = st.session_state.start
+        st.session_state.cell_states[oldr][oldc] = STATE_EMPTY
+        st.session_state.start = (r, c)
+        st.session_state.cell_states[r][c] = STATE_START
+        # cannot have start also be end
+        if st.session_state.end == (r, c):
             st.session_state.end = None
-        st.session_state.start = pos
-        return
-    if tool == "End":
-        st.session_state.obstacles.discard(pos)
-        if pos == st.session_state.start:
+
+    elif st.session_state.tool == "End":
+        oldr, oldc = st.session_state.end
+        if st.session_state.end is not None:
+            st.session_state.cell_states[oldr][oldc] = STATE_EMPTY
+        st.session_state.end = (r, c)
+        st.session_state.cell_states[r][c] = STATE_END
+        if st.session_state.start == (r, c):
             st.session_state.start = None
-        st.session_state.end = pos
-        return
-    if tool in ("Low", "Med", "High"):
-        v = {"Low": low_val, "Med": med_val, "High": high_val}[tool]
-        st.session_state.cell_values[pos] = int(v)
-        return
-    if tool == "Erase":
-        st.session_state.cell_values.pop(pos, None)
-        st.session_state.obstacles.discard(pos)
-        return
 
-# --- Grid: use one <form> per cell, laid out by CSS grid ---
-st.markdown('<div id="cellgrid">', unsafe_allow_html=True)
-
-for r in range(N):
-    for c in range(N):
-        pos = (r, c)
-        is_start = (pos == st.session_state.start)
-        is_end = (pos == st.session_state.end)
-        is_ob = (pos in st.session_state.obstacles)
-        val = st.session_state.cell_values.get(pos)
-        on_path = path_index.get(pos)
-
-        if on_path:
-            main_text, color_token = f"{on_path}", ""
-        elif is_ob:
-            main_text, color_token = "X", "🟥"
-        elif is_start:
-            main_text, color_token = "S", "🟦"
-        elif is_end:
-            main_text, color_token = "E", "🟪"
-        else:
-            if val == low_val:
-                color_token = "🟩"
-            elif val == med_val:
-                color_token = "🟦"
-            elif val == high_val:
-                color_token = "🟨"
-            else:
-                color_token = "⬜"
-            main_text = str(val if val is not None else 1)
-
-        label = f"{color_token} {main_text}".strip()
-        help_txt = []
-        if is_start: help_txt.append("Start")
-        if is_end: help_txt.append("End")
-        if is_ob: help_txt.append("Obstacle")
-        if val is not None: help_txt.append(f"Value={val}")
-        else: help_txt.append("Value=1")
-        if on_path: help_txt.append(f"Path idx={on_path}")
-
-        with st.form(key=f"cell-{r}-{c}"):
-            if st.form_submit_button(label, help=", ".join(help_txt)):
-                click_cell(r, c)
-
-st.markdown('</div>', unsafe_allow_html=True)
-
-# --- result display ---
+# Info panel
 st.divider()
 if st.session_state.solution is None:
-    st.info("Click cells to configure, then press **Solve**.")
+    st.info("Click squares to configure, then press **Solve**.")
 else:
     path, total = st.session_state.solution
     if not path:
@@ -313,9 +382,8 @@ else:
     else:
         st.success(f"Max value: {total} | Path length: {len(path)}")
 
-with st.expander("Show configuration"):
+with st.expander("Show configuration (for debugging)"):
     st.write(f"Start: {st.session_state.start}")
     st.write(f"End: {st.session_state.end}")
-    st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
-    st.json({str(k): v for k, v in st.session_state.cell_values.items()})
-
+    obs = sorted([(r, c) for r in range(N) for c in range(N) if st.session_state.cell_states[r][c] == STATE_OBS])
+    st.write(f"Obstacles: {obs}")
