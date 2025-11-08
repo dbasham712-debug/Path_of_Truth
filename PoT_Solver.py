@@ -184,17 +184,24 @@ with col_actions:
         s, e = st.session_state.start, st.session_state.end
         res = solve_max_value_path(N, s, e, st.session_state.obstacles, st.session_state.cell_values)
         st.session_state.solution = res
-    c1, c2, c3 = st.columns(3)
+
+    c1, c2, c3, c4 = st.columns(4)
     if c1.button("Clear Values"):
         st.session_state.cell_values = {}
         st.session_state.solution = None
+        st.rerun()
+
     if c2.button("Clear Obstacles"):
         st.session_state.obstacles = set()
         st.session_state.solution = None
+        st.rerun()
+
     if c3.button("Clear All (keep S/E)"):
         st.session_state.obstacles = set()
         st.session_state.cell_values = {}
         st.session_state.solution = None
+        st.rerun()
+
     if c4.button("All Low"):
         # set every non-obstacle cell to the current Low value
         for r in range(N):
@@ -380,6 +387,7 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
+
 
 
 
