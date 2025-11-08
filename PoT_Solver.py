@@ -173,10 +173,10 @@ with col_tool:
     st.session_state.tool = tool
 
 with col_vals:
-    low_val  = st.number_input("Low",  min_value=0, max_value=999, value=2,  step=1)
-    med_val  = st.number_input("Med",  min_value=0, max_value=999, value=4,  step=1)
-    high_val = st.number_input("High", min_value=0, max_value=999, value=10,  step=1)
-    myth_val = st.number_input("Mythical", min_value=0, max_value=999, value=30, step=1)
+    low_val  = st.number_input("Low",  min_value=0, max_value=999, value=4,  step=1)
+    med_val  = st.number_input("Med",  min_value=0, max_value=999, value=8,  step=1)
+    high_val = st.number_input("High", min_value=0, max_value=999, value=20,  step=1)
+    myth_val = st.number_input("Mythical", min_value=0, max_value=999, value=60, step=1)
 
 
 with col_actions:
@@ -371,5 +371,6 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
+
 
 
