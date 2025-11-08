@@ -8,13 +8,11 @@ GridPos = Tuple[int, int]
 DIRS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 N = 5  # grid size
 
-
 # ------------------------
 # Core grid/solver helpers
 # ------------------------
 def in_bounds(r: int, c: int, n: int = N) -> bool:
     return 0 <= r < n and 0 <= c < n
-
 
 def neighbors(pos: GridPos, n: int = N):
     r, c = pos
@@ -22,7 +20,6 @@ def neighbors(pos: GridPos, n: int = N):
         nr, nc = r + dr, c + dc
         if in_bounds(nr, nc, n):
             yield (nr, nc)
-
 
 def reachable(n: int, start: GridPos, end: GridPos,
               obstacles: Set[GridPos], visited: Set[GridPos]) -> bool:
@@ -41,7 +38,6 @@ def reachable(n: int, start: GridPos, end: GridPos,
                 q.append(nb)
     return False
 
-
 def reachable_cells(n: int, start: GridPos,
                     obstacles: Set[GridPos], visited: Set[GridPos]) -> Set[GridPos]:
     blocked = (obstacles | visited) - {start}
@@ -56,7 +52,6 @@ def reachable_cells(n: int, start: GridPos,
                 seen.add(nb)
                 q.append(nb)
     return seen
-
 
 def solve_max_value_path(
     n: int,
@@ -123,49 +118,49 @@ def solve_max_value_path(
 # Streamlit UI
 # --------------
 st.set_page_config(page_title="5x5 Weighted Path Solver", page_icon="🧩", layout="centered")
-SQUARE_PX = 70   # cell size in px
-GAP_PX    = 6    # gap between cells in px
-N = 5            # grid width (keep in sync with your N)
+
+# === Pixel-perfect grid sizing ===
+SQUARE_PX = 70   # size of each cell
+GAP_PX    = 6    # gap between cells
 
 st.markdown(f"""
 <style>
-/* Make every row in the grid a fixed CSS grid instead of flex columns */
-#cellgrid [data-testid="stHorizontalBlock"] {{
-  display: grid !important;
-  grid-template-columns: repeat({N}, {SQUARE_PX}px) !important;
-  grid-auto-rows: {SQUARE_PX}px !important;
-  gap: {GAP_PX}px !important;              /* exact gutter you want */
-  justify-content: start !important;       /* pack tightly from left */
-  align-items: start !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}}
+/* Grid wrapper becomes a true CSS grid (no st.columns) */
+#cellgrid {{
+  display: grid;
+  grid-template-columns: repeat({N}, {SQUARE_PX}px);
+  grid-auto-rows: {SQUARE_PX}px;
+  gap: {GAP_PX}px;
+  width: calc({N} * {SQUARE_PX}px + ({N} - 1) * {GAP_PX}px);
+  margin: 0 auto; /* center the grid */
+  padding: 0;
+}
 
-/* Ensure Streamlit column wrappers don't add size/spacing */
-#cellgrid [data-testid="column"] {{
+/* Each cell is a Streamlit <form>, make it fit the grid box */
+#cellgrid form {{
+  margin: 0 !important;
+  padding: 0 !important;
   width: {SQUARE_PX}px !important;
-  max-width: {SQUARE_PX}px !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  flex: 0 0 {SQUARE_PX}px !important;
+  height: {SQUARE_PX}px !important;
 }}
 
-/* True square buttons that fill the grid cells, no extra margins */
-#cellgrid [data-testid="stButton"] > button {{
+/* Make the submit buttons fill the grid cell exactly */
+#cellgrid form button {{
   width: 100% !important;
   height: 100% !important;
   padding: 0 !important;
   margin: 0 !important;
-  border-radius: 6px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  line-height: 1 !important;
-  white-space: nowrap !important;
-  font-weight: 600 !important;
+  border-radius: 8px !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  font-weight: 600;
+  white-space: nowrap;
 }}
 </style>
 """, unsafe_allow_html=True)
+
 # --- session state ---
 if "start" not in st.session_state:
     st.session_state.start = (4, 1)
@@ -183,7 +178,7 @@ if "tool" not in st.session_state:
 st.title("5×5 Weighted Path Solver")
 st.caption("Select a tool, click cells to configure, then hit **Solve**.")
 
-# --- toolbar ---
+# --- toolbar (unchanged) ---
 col_tool, col_vals, col_actions = st.columns([1.1, 1.2, 1.2])
 with col_tool:
     tool = st.radio(
@@ -194,9 +189,9 @@ with col_tool:
     st.session_state.tool = tool
 
 with col_vals:
-    low_val = st.number_input("Low", min_value=0, max_value=999, value=1, step=1)
-    med_val = st.number_input("Med", min_value=0, max_value=999, value=3, step=1)
-    high_val = st.number_input("High", min_value=0, max_value=999, value=5, step=1)
+    low_val = st.number_input("Low", min_value=0, max_value=999, value=2, step=1)
+    med_val = st.number_input("Med", min_value=0, max_value=999, value=4, step=1)
+    high_val = st.number_input("High", min_value=0, max_value=999, value=10, step=1)
 
 with col_actions:
     if st.button("Solve", use_container_width=True):
@@ -217,13 +212,12 @@ with col_actions:
 
 st.divider()
 
-# --- solution lookup ---
+# --- Path index lookup ---
 path_index = {}
 if st.session_state.solution:
     path, total = st.session_state.solution
     for i, cell in enumerate(path, start=1):
         path_index[cell] = i
-
 
 # --- click handler ---
 def click_cell(r: int, c: int):
@@ -258,12 +252,10 @@ def click_cell(r: int, c: int):
         st.session_state.obstacles.discard(pos)
         return
 
-
-# --- grid (fixed-px squares) ---
+# --- Grid: use one <form> per cell, laid out by CSS grid ---
 st.markdown('<div id="cellgrid">', unsafe_allow_html=True)
 
 for r in range(N):
-    cols = st.columns(N, gap="small")
     for c in range(N):
         pos = (r, c)
         is_start = (pos == st.session_state.start)
@@ -300,9 +292,9 @@ for r in range(N):
         else: help_txt.append("Value=1")
         if on_path: help_txt.append(f"Path idx={on_path}")
 
-        # fixed-size buttons (no use_container_width)
-        if cols[c].button(label, key=f"cell-{r}-{c}", help=", ".join(help_txt)):
-            click_cell(r, c)
+        with st.form(key=f"cell-{r}-{c}"):
+            if st.form_submit_button(label, help=", ".join(help_txt)):
+                click_cell(r, c)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
@@ -322,7 +314,3 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
-
-
-
-
