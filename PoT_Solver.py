@@ -120,46 +120,50 @@ def solve_max_value_path(
 st.set_page_config(page_title="5x5 Weighted Path Solver", page_icon="🧩", layout="centered")
 
 # === Pixel-perfect grid sizing ===
-SQUARE_PX = 70   # size of each cell
-GAP_PX    = 6    # gap between cells
+SQUARE_PX = 70   # cell size in px
+GAP_PX    = 6    # gap between cells in px
+N = 5            # grid width
 
 st.markdown(f"""
 <style>
-/* Grid wrapper becomes a true CSS grid (no st.columns) */
-#cellgrid {{
-  display: grid;
-  grid-template-columns: repeat({N}, {SQUARE_PX}px);
-  grid-auto-rows: {SQUARE_PX}px;
-  gap: {GAP_PX}px;
-  width: calc({N} * {SQUARE_PX}px + ({N} - 1) * {GAP_PX}px);
-  margin: 0 auto; /* center the grid */
-  padding: 0;
-}
-
-/* Each cell is a Streamlit <form>, make it fit the grid box */
-#cellgrid form {{
-  margin: 0 !important;
+/* Make every row in the grid a fixed CSS grid instead of flex columns */
+#cellgrid [data-testid="stHorizontalBlock"] {{
+  display: grid !important;
+  grid-template-columns: repeat({{N}}, {{SQUARE_PX}}px) !important;
+  grid-auto-rows: {{SQUARE_PX}}px !important;
+  gap: {{GAP_PX}}px !important;              /* exact gutter you want */
+  justify-content: start !important;         /* pack tightly from left */
+  align-items: start !important;
   padding: 0 !important;
-  width: {SQUARE_PX}px !important;
-  height: {SQUARE_PX}px !important;
+  margin: 0 !important;
 }}
 
-/* Make the submit buttons fill the grid cell exactly */
-#cellgrid form button {{
+/* Ensure Streamlit column wrappers don't add size/spacing */
+#cellgrid [data-testid="column"] {{
+  width: {{SQUARE_PX}}px !important;
+  max-width: {{SQUARE_PX}}px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  flex: 0 0 {{SQUARE_PX}}px !important;
+}}
+
+/* True square buttons that fill the grid cells, no extra margins */
+#cellgrid [data-testid="stButton"] > button {{
   width: 100% !important;
   height: 100% !important;
   padding: 0 !important;
   margin: 0 !important;
-  border-radius: 8px !important;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  font-weight: 600;
-  white-space: nowrap;
+  border-radius: 6px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  font-weight: 600 !important;
 }}
 </style>
 """, unsafe_allow_html=True)
+
 
 # --- session state ---
 if "start" not in st.session_state:
@@ -314,3 +318,4 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
+
