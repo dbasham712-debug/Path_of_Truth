@@ -125,41 +125,40 @@ def solve_max_value_path(
 # --------------
 st.set_page_config(page_title="5x5 Weighted Path Solver", page_icon="🧩", layout="centered")
 
-# --- square buttons (CSS) ---
+# --- square buttons (CSS) — scope ONLY to the grid so toolbar buttons are unaffected ---
 st.markdown("""
 <style>
-/* Force buttons to render perfectly square regardless of Streamlit column behavior */
-div[data-testid="stButton"] > button {
+/* Only affect buttons inside our grid container */
+#cellgrid [data-testid="stButton"] > button {
   width: 100% !important;
-  height: 0 !important;
-  padding-bottom: 100% !important; /* height = width */
-  position: relative !important;
-  overflow: hidden !important;
-  border-radius: 6px !important; /* optional */
-  font-weight: bold !important;
-}
-
-/* Center text/icon inside each button */
-div[data-testid="stButton"] > button > div {
-  position: absolute !important;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
+  aspect-ratio: 1 / 1 !important;   /* keep true squares */
+  height: auto !important;
+  min-height: 0 !important;
+  padding: 0 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  line-height: 1 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+/* neutralize inner wrapper quirks so the label centers nicely */
+#cellgrid [data-testid="stButton"] > button > div {
+  width: 100% !important;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # Init session state
 if "start" not in st.session_state:
-    st.session_state.start: GridPos = (4, 1)
+    st.session_state.start = (4, 1)
 if "end" not in st.session_state:
-    st.session_state.end: GridPos = (0, 3)
+    st.session_state.end = (0, 3)
 if "obstacles" not in st.session_state:
-    st.session_state.obstacles: Set[GridPos] = set()
+    st.session_state.obstacles = set()
 if "cell_values" not in st.session_state:
-    st.session_state.cell_values: Dict[GridPos, int] = {}
+    st.session_state.cell_values = {}
 if "solution" not in st.session_state:
     st.session_state.solution = None
 if "tool" not in st.session_state:
@@ -242,7 +241,9 @@ def click_cell(r: int, c: int):
         st.session_state.obstacles.discard(pos)
         return
 
-# Grid
+# --- Grid (wrapped in a container so CSS targets only these buttons) ---
+st.markdown('<div id="cellgrid">', unsafe_allow_html=True)
+
 for r in range(N):
     cols = st.columns(N, gap="small")
     for c in range(N):
@@ -285,7 +286,10 @@ for r in range(N):
 
         if cols[c].button(label, key=f"cell-{r}-{c}", help=", ".join(help_txt), use_container_width=True):
             click_cell(r, c)
-# --- SVG arrows for the solved path (place this right after the grid loop) ---
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+# --- SVG arrows for the solved path ---
 if st.session_state.solution:
     path, total = st.session_state.solution
     if path:
@@ -363,4 +367,3 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
-
