@@ -124,9 +124,7 @@ def solve_max_value_path(
 # --------------
 st.set_page_config(page_title="5x5 Weighted Path Solver", page_icon="🧩", layout="centered")
 
-# --- fixed-size square buttons (only grid) ---
-SQUARE_PX = 70  # ← adjust this size if you want larger/smaller cells
-
+SQUARE_PX = 70  # ← adjust this to control square size
 st.markdown(f"""
 <style>
 /* only affect buttons inside our grid */
@@ -136,24 +134,26 @@ st.markdown(f"""
   min-width: 0 !important;
   min-height: 0 !important;
   padding: 0 !important;
-  margin: 2px !important;
+  margin: 1px !important;          /* ↓ smaller gap between squares */
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   line-height: 1 !important;
   white-space: nowrap !important;
   font-weight: 600 !important;
-  border-radius: 8px !important;
+  border-radius: 6px !important;
 }}
 
-/* center these inside each Streamlit column cell */
+/* tighter grid alignment */
 #cellgrid [data-testid="column"] > div {{
   display: flex !important;
   justify-content: center !important;
+  align-items: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }}
 </style>
 """, unsafe_allow_html=True)
-
 # --- session state ---
 if "start" not in st.session_state:
     st.session_state.start = (4, 1)
@@ -251,7 +251,7 @@ def click_cell(r: int, c: int):
 st.markdown('<div id="cellgrid">', unsafe_allow_html=True)
 
 for r in range(N):
-    cols = st.columns(N, gap="small")
+    cols = st.columns(N, gap="none")
     for c in range(N):
         pos = (r, c)
         is_start = (pos == st.session_state.start)
@@ -310,3 +310,4 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
+
