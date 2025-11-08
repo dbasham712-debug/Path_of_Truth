@@ -195,6 +195,15 @@ with col_actions:
         st.session_state.obstacles = set()
         st.session_state.cell_values = {}
         st.session_state.solution = None
+     if c4.button("All Low"):
+        # set every non-obstacle cell to the current Low value
+        for r in range(N):
+            for c in range(N):
+                pos = (r, c)
+                if pos not in st.session_state.obstacles:
+                    st.session_state.cell_values[pos] = int(low_val)
+        st.session_state.solution = None
+        st.rerun()
 
 st.divider()
 
@@ -331,7 +340,7 @@ if st.session_state.solution:
                 elif st.session_state.cell_values.get(pos) == high_val:
                     color = "gold"
                 elif st.session_state.cell_values.get(pos) == myth_val:
-                    color = "purple"
+                    color = "pink"
                 else:
                     color = "white"
 
@@ -371,6 +380,7 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
+
 
 
 
