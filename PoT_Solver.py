@@ -123,19 +123,19 @@ def solve_max_value_path(
 # Streamlit UI
 # --------------
 st.set_page_config(page_title="5x5 Weighted Path Solver", page_icon="🧩", layout="centered")
-SQUARE_PX = 70    # size of each cell
-GAP_PX    = 4     # space between cells (try 2–6)
+SQUARE_PX = 70   # cell size
+GAP_PX    = 6    # gutter between cells
 
 st.markdown(f"""
 <style>
-/* Square, fixed-size grid buttons only */
+/* --- square, fixed-size grid buttons --- */
 #cellgrid [data-testid="stButton"] > button {{
   width: {SQUARE_PX}px !important;
   height: {SQUARE_PX}px !important;
   min-width: 0 !important;
   min-height: 0 !important;
   padding: 0 !important;
-  margin: 0 !important;                 /* remove extra spacing on the button itself */
+  margin: 0 !important;                   /* no extra margins */
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -145,19 +145,26 @@ st.markdown(f"""
   font-weight: 600 !important;
 }}
 
-/* Streamlit lays out columns in a grid with a built-in gap.
-   Override that gap ONLY inside #cellgrid. */
+/* --- make Streamlit columns NOT stretch in the grid --- */
+#cellgrid [data-testid="column"] {{
+  flex: 0 0 auto !important;              /* don't grow, don't shrink */
+  width: auto !important;                 /* size to content (the button) */
+}}
 #cellgrid [data-testid="stHorizontalBlock"] {{
-  gap: {GAP_PX}px !important;          /* horizontal+vertical gutter between cells */
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  gap: {GAP_PX}px !important;             /* actual gutter between cells */
+  justify-content: flex-start !important; /* pack columns tightly from the left */
+  align-items: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }}
 
-/* Kill any padding inside each column wrapper so buttons sit flush */
+/* inner wrapper: no extra padding */
 #cellgrid [data-testid="column"] > div {{
   padding: 0 !important;
   margin: 0 !important;
-  display: flex !important;
-  justify-content: center !important;
-  align-items: center !important;
+  display: block !important;
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -317,5 +324,6 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
+
 
 
