@@ -1,15 +1,42 @@
-# streamlit app: 5x5 Weighted Path Solver (Pure Streamlit; SVG + components.html)
+# streamlit app: 5x5 Weighted Path Solver (Pure Streamlit; Clickable SVG)
 
 from collections import deque
 from typing import Dict, List, Optional, Set, Tuple
 import streamlit as st
 from streamlit.components.v1 import html as html_component
 
+# ==========================
+# Config & basic constants
+# ==========================
+st.set_page_config(page_title="5x5 Weighted Path Solver", page_icon="🧩", layout="centered")
+
 GridPos = Tuple[int, int]
 DIRS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
 N = 5  # grid size
 
-# ===================== Core Solver =====================
+# Visual sizing (SVG only)
+CELL = 70
+GAP = 6
+W = N * (CELL + GAP) - GAP
+H = W
+
+# Color palette by state
+COLORS = {
+    "empty": "white",
+    "low":   "#32CD32",  # limegreen
+    "med":   "#1E90FF",  # dodgerblue
+    "high":  "#FFD700",  # gold
+    "obs":   "#FF4D4D",  # red
+    "start": "#00BFFF",  # deepskyblue
+    "end":   "#800080",  # purple
+}
+
+TOOLS = ["Start", "End", "Obstacle", "Low", "Med", "High", "Erase"]
+
+
+# ==========================
+# Solver helpers
+# ==========================
 def in_bounds(r: int, c: int, n: int = N) -> bool:
     return 0 <= r < n and 0 <= c < n
 
@@ -86,6 +113,7 @@ def solve_max_value_path(
 
     def dfs(cur: GridPos, path: List[GridPos], cur_sum: int):
         nonlocal best_path, best_val
+
         if not reachable(n, cur, end, obstacles, visited):
             return
         if optimistic_bound(cur, cur_sum) < best_val:
@@ -111,29 +139,10 @@ def solve_max_value_path(
         return None
     return best_path, best_val
 
-# ===================== Streamlit UI =====================
-st.set_page_config(page_title="5x5 Weighted Path Solver", page_icon="🧩", layout="centered")
 
-# --- visual sizes ---
-CELL = 70
-GAP = 6
-W = N * (CELL + GAP) - GAP
-H = W
-
-# --- colors ---
-COLORS = {
-    "empty": "white",
-    "low": "#32CD32",
-    "med": "#1E90FF",
-    "high": "#FFD700",
-    "obs": "#FF4D4D",
-    "start": "#00BFFF",
-    "end": "#800080",
-}
-
-TOOLS = ["Start", "End", "Obstacle", "Low", "Med", "High", "Erase"]
-
-# --- session state ---
+# ==========================
+# Session state defaults
+# ==========================
 if "grid" not in st.session_state:
     st.session_state.grid = [["empty" for _ in range(N)] for _ in range(N)]
 if "start" not in st.session_state:
@@ -147,10 +156,13 @@ if "tool" not in st.session_state:
 if "solution" not in st.session_state:
     st.session_state.solution = None
 
+
+# ==========================
+# UI: toolbar
+# ==========================
 st.title("5×5 Weighted Path Solver (Clickable SVG • Pure Streamlit)")
 st.caption("Pick a tool, click squares to configure. Press **Solve** to draw the path.")
 
-# --- toolbar ---
 col_tool, col_actions = st.columns([1.5, 1])
 with col_tool:
     st.session_state.tool = st.radio("Tool", TOOLS, index=TOOLS.index(st.session_state.tool), horizontal=True)
@@ -171,6 +183,7 @@ with col_actions:
                 elif s == "high":
                     vals[(r, c)] = 5
         st.session_state.solution = solve_max_value_path(N, st.session_state.start, st.session_state.end, obs, vals)
+
     c1, c2, c3 = st.columns(3)
     if c1.button("Clear Weights"):
         for r in range(N):
@@ -194,8 +207,12 @@ with col_actions:
 
 st.divider()
 
-# --- click handler ---
+
+# ==========================
+# Click handling + SVG
+# ==========================
 def apply_tool(r: int, c: int):
+    """Apply current tool to cell (r, c)."""
     st.session_state.solution = None
     g = st.session_state.grid
     t = st.session_state.tool
@@ -219,15 +236,16 @@ def apply_tool(r: int, c: int):
         g[r][c] = "end"
         st.session_state.end = (r, c)
 
-# --- SVG helpers ---
+
 def center_of(rc: GridPos):
     r, c = rc
     x = c * (CELL + GAP) + CELL / 2
     y = r * (CELL + GAP) + CELL / 2
     return x, y
 
-def build_svg(path: Optional[List[GridPos]]):
-    # cells
+
+def build_svg_markup(path: Optional[List[GridPos]]):
+    # Cells
     rects = []
     texts = []
     for r in range(N):
@@ -237,7 +255,7 @@ def build_svg(path: Optional[List[GridPos]]):
                 f'<rect x="{c*(CELL+GAP)}" y="{r*(CELL+GAP)}" width="{CELL}" height="{CELL}" '
                 f'rx="6" ry="6" stroke="gray" fill="{fill}" onclick="cellClick({r},{c})" />'
             )
-            # optional labels for S/E
+            # Optional labels for Start/End
             if st.session_state.grid[r][c] == "start":
                 x, y = center_of((r, c))
                 texts.append(f'<text x="{x}" y="{y+5}" text-anchor="middle" font-size="20" fill="#00334d">S</text>')
@@ -245,7 +263,7 @@ def build_svg(path: Optional[List[GridPos]]):
                 x, y = center_of((r, c))
                 texts.append(f'<text x="{x}" y="{y+5}" text-anchor="middle" font-size="20" fill="#3f005f">E</text>')
 
-    # arrows
+    # Path arrows (if solved)
     lines = []
     if path:
         for i in range(len(path) - 1):
@@ -255,20 +273,13 @@ def build_svg(path: Optional[List[GridPos]]):
                 f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="3" marker-end="url(#arrow)" />'
             )
 
+    # Pure SVG (scripts added in outer HTML shell)
     return f"""
     <svg width="{W}" height="{H}" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">
       <defs>
         <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" fill="black" />
         </marker>
-        <script type="text/javascript">
-          function cellClick(r,c){{
-            // Send value to Streamlit; components.html will return it to Python.
-            if (window.Streamlit && window.Streamlit.setComponentValue) {{
-              window.Streamlit.setComponentValue({{row:r,col:c}});
-            }}
-          }}
-        </script>
       </defs>
       {''.join(rects)}
       {''.join(lines)}
@@ -276,14 +287,45 @@ def build_svg(path: Optional[List[GridPos]]):
     </svg>
     """
 
-# --- draw SVG component and capture clicks ---
+
+def render_clickable_svg(path: Optional[List[GridPos]]):
+    """Render SVG via components.html with proper Streamlit component APIs."""
+    svg = build_svg_markup(path)
+    html = f"""
+    <div id="svg-host">{svg}</div>
+    <script>
+      // Notify Streamlit we're ready & set height
+      function ready() {{
+        if (window.Streamlit && window.Streamlit.setComponentReady) {{
+          window.Streamlit.setComponentReady();
+        }}
+        if (window.Streamlit && window.Streamlit.setFrameHeight) {{
+          window.Streamlit.setFrameHeight({H} + 2);
+        }}
+      }}
+      // Called by <rect onclick="cellClick(r,c)">
+      function cellClick(r, c) {{
+        if (window.Streamlit && window.Streamlit.setComponentValue) {{
+          window.Streamlit.setComponentValue({{row: r, col: c}});
+        }}
+      }}
+      window.cellClick = cellClick;
+      if (document.readyState === "loading") {{
+        document.addEventListener("DOMContentLoaded", ready);
+      }} else {{
+        ready();
+      }}
+    </script>
+    """
+    # Returns last value sent via setComponentValue (or None)
+    return html_component(html, height=H+10, scrolling=False, key="grid_svg")
+
+
+# Draw component and capture click result
 path = st.session_state.solution[0] if st.session_state.solution else None
-svg_html = build_svg(path)
+clicked = render_clickable_svg(path)
 
-# NOTE: html_component returns the last value sent via Streamlit.setComponentValue(...)
-clicked = html_component(svg_html, height=H+10, scrolling=False, key="grid_svg")
-
-# If user clicked a cell, update state immediately and redraw on next rerun
+# If a cell was clicked, apply tool and rerun to reflect change immediately
 if clicked and isinstance(clicked, dict) and "row" in clicked and "col" in clicked:
     apply_tool(int(clicked["row"]), int(clicked["col"]))
     st.experimental_rerun()
