@@ -289,7 +289,8 @@ def build_svg_markup(path: Optional[List[GridPos]]):
 
 
 def render_clickable_svg(path: Optional[List[GridPos]]):
-    """Render SVG via components.html with proper Streamlit component APIs."""
+    """Render SVG via components.html with proper Streamlit component APIs.
+       IMPORTANT: All literal braces in JS are doubled to escape f-string parsing."""
     svg = build_svg_markup(path)
     html = f"""
     <div id="svg-host">{svg}</div>
