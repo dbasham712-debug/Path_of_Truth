@@ -161,48 +161,51 @@ if "tool" not in st.session_state:
 st.title("5×5 Weighted Path Solver")
 st.caption("Select a tool, click cells to configure, then hit **Solve**.")
 
-# Toolbar
+st.markdown('<div id="toolbar">', unsafe_allow_html=True)
+
 col_tool, col_vals, col_actions = st.columns([1.1, 1.2, 1.2])
+
 with col_tool:
     tool = st.radio(
-    "Tool",
-    ["Start", "End", "Obstacle", "Low", "Med", "High", "Mythical", "Erase"],
-    index=["Start", "End", "Obstacle", "Low", "Med", "High", "Mythical", "Erase"].index(st.session_state.tool),
+        "Tool",
+        ["Start", "End", "Obstacle", "Low", "Med", "High", "Mythical", "Erase"],
+        index=["Start", "End", "Obstacle", "Low", "Med", "High", "Mythical", "Erase"].index(st.session_state.tool),
     )
     st.session_state.tool = tool
 
 with col_vals:
-    low_val  = st.number_input("Low",  min_value=0, max_value=999, value=4,  step=1)
-    med_val  = st.number_input("Med",  min_value=0, max_value=999, value=8,  step=1)
-    high_val = st.number_input("High", min_value=0, max_value=999, value=20,  step=1)
-    myth_val = st.number_input("Mythical", min_value=0, max_value=999, value=60, step=1)
-
+    # 2×2 value inputs
+    r1c1, r1c2 = st.columns(2)
+    r2c1, r2c2 = st.columns(2)
+    with r1c1:
+        low_val  = st.number_input("Low",  min_value=0, max_value=999, value=1,  step=1)
+    with r1c2:
+        med_val  = st.number_input("Med",  min_value=0, max_value=999, value=3,  step=1)
+    with r2c1:
+        high_val = st.number_input("High", min_value=0, max_value=999, value=5,  step=1)
+    with r2c2:
+        myth_val = st.number_input("Mythical", min_value=0, max_value=999, value=30, step=1)
 
 with col_actions:
     if st.button("Solve", use_container_width=True):
         s, e = st.session_state.start, st.session_state.end
         res = solve_max_value_path(N, s, e, st.session_state.obstacles, st.session_state.cell_values)
         st.session_state.solution = res
-
     c1, c2, c3, c4 = st.columns(4)
     if c1.button("Clear Values"):
         st.session_state.cell_values = {}
         st.session_state.solution = None
         st.rerun()
-
     if c2.button("Clear Obstacles"):
         st.session_state.obstacles = set()
         st.session_state.solution = None
         st.rerun()
-
     if c3.button("Clear All (keep S/E)"):
         st.session_state.obstacles = set()
         st.session_state.cell_values = {}
         st.session_state.solution = None
         st.rerun()
-
     if c4.button("All Low"):
-        # set every non-obstacle cell to the current Low value
         for r in range(N):
             for c in range(N):
                 pos = (r, c)
@@ -210,6 +213,8 @@ with col_actions:
                     st.session_state.cell_values[pos] = int(low_val)
         st.session_state.solution = None
         st.rerun()
+
+st.markdown('</div>', unsafe_allow_html=True)  # end #toolbar
 
 st.divider()
 
@@ -386,6 +391,7 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
+
 
 
 
