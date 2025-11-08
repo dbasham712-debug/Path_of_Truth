@@ -267,7 +267,7 @@ section.main > div.block-container {{
   border-radius: 8px !important;
   line-height: 1 !important;
   font-weight: 700 !important;
-  color: #102A43 !important; /* label color for S/E letters if any */
+  color: #102A43 !important; /* label color for S/E numbers if any */
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -277,7 +277,7 @@ section.main > div.block-container {{
 # ------------------------
 st.markdown('<div id="gridwrap">', unsafe_allow_html=True)
 
-# Helper: robust rerun that works across Streamlit versions
+# Robust rerun helper (supports both new and old Streamlit)
 def _rerun():
     try:
         st.rerun()
@@ -287,17 +287,17 @@ def _rerun():
 for r in range(N):
     for c in range(N):
         state = st.session_state.grid[r][c]
-        label = "S" if state == "start" else ("E" if state == "end" else " ")
-        bg = COLORS[state]  # Inline style for background color per tile
-        with st.form(key=f"cell-{r}-{c}"):
+        label = "" if state not in ("start", "end") else ("S" if state == "start" else "E")
+        bg = COLORS[state]
+        with st.form(key=f"cell-{r}-{c}", clear_on_submit=True):
             clicked = st.form_submit_button(
-                label,
+                label if label else " ",
                 help=f"({r},{c}) {state}",
                 kwargs={"style": f"background-color:{bg};"}
             )
             if clicked:
                 apply_tool(r, c)
-                _rerun()  # <-- immediate visual update on the same click
+                _rerun()  # <<-- immediate visual update
 
 st.markdown('</div>', unsafe_allow_html=True)
 
