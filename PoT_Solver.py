@@ -128,24 +128,35 @@ st.set_page_config(page_title="5x5 Weighted Path Solver", page_icon="🧩", layo
 # --- square buttons (CSS) — scope ONLY to the grid so toolbar buttons are unaffected ---
 st.markdown("""
 <style>
-/* Only affect buttons inside our grid container */
-#cellgrid [data-testid="stButton"] > button {
+/* Only square-ify the 5×5 cell buttons */
+#cellgrid [data-testid="stButton"] > button{
   width: 100% !important;
-  aspect-ratio: 1 / 1 !important;   /* keep true squares */
-  height: auto !important;
-  min-height: 0 !important;
+  position: relative !important;
   padding: 0 !important;
+  border-radius: 8px;              /* optional */
+  min-height: 0 !important;        /* kill theme min-height */
+  height: auto !important;         /* let the ::before define height */
+  overflow: hidden !important;
+}
+
+/* Create height = width using padding on a pseudo-element */
+#cellgrid [data-testid="stButton"] > button::before{
+  content: "" !important;
+  display: block !important;
+  padding-top: 100% !important;    /* ← makes it a perfect square */
+}
+
+/* Center the label over the square */
+#cellgrid [data-testid="stButton"] > button > div{
+  position: absolute !important;
+  inset: 0 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
   line-height: 1 !important;
   white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
-}
-/* neutralize inner wrapper quirks so the label centers nicely */
-#cellgrid [data-testid="stButton"] > button > div {
-  width: 100% !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -367,3 +378,4 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
+
