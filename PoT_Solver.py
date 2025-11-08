@@ -2,7 +2,6 @@
 
 from collections import deque
 from typing import Dict, List, Optional, Set, Tuple
-
 import streamlit as st
 
 GridPos = Tuple[int, int]
@@ -125,43 +124,37 @@ def solve_max_value_path(
 # --------------
 st.set_page_config(page_title="5x5 Weighted Path Solver", page_icon="🧩", layout="centered")
 
-# --- square buttons (CSS) — scope ONLY to the grid so toolbar buttons are unaffected ---
-st.markdown("""
+# --- fixed-size square buttons (only grid) ---
+SQUARE_PX = 70  # ← adjust this size if you want larger/smaller cells
+
+st.markdown(f"""
 <style>
-/* Only square-ify the 5×5 cell buttons */
-#cellgrid [data-testid="stButton"] > button{
-  width: 100% !important;
-  position: relative !important;
+/* only affect buttons inside our grid */
+#cellgrid [data-testid="stButton"] > button {{
+  width: {SQUARE_PX}px !important;
+  height: {SQUARE_PX}px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
   padding: 0 !important;
-  border-radius: 8px;              /* optional */
-  min-height: 0 !important;        /* kill theme min-height */
-  height: auto !important;         /* let the ::before define height */
-  overflow: hidden !important;
-}
-
-/* Create height = width using padding on a pseudo-element */
-#cellgrid [data-testid="stButton"] > button::before{
-  content: "" !important;
-  display: block !important;
-  padding-top: 100% !important;    /* ← makes it a perfect square */
-}
-
-/* Center the label over the square */
-#cellgrid [data-testid="stButton"] > button > div{
-  position: absolute !important;
-  inset: 0 !important;
-  display: flex !important;
+  margin: 2px !important;
+  display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  width: 100% !important;
-  height: 100% !important;
   line-height: 1 !important;
   white-space: nowrap !important;
-}
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+}}
+
+/* center these inside each Streamlit column cell */
+#cellgrid [data-testid="column"] > div {{
+  display: flex !important;
+  justify-content: center !important;
+}}
 </style>
 """, unsafe_allow_html=True)
 
-# Init session state
+# --- session state ---
 if "start" not in st.session_state:
     st.session_state.start = (4, 1)
 if "end" not in st.session_state:
@@ -178,7 +171,7 @@ if "tool" not in st.session_state:
 st.title("5×5 Weighted Path Solver")
 st.caption("Select a tool, click cells to configure, then hit **Solve**.")
 
-# Toolbar
+# --- toolbar ---
 col_tool, col_vals, col_actions = st.columns([1.1, 1.2, 1.2])
 with col_tool:
     tool = st.radio(
@@ -212,14 +205,15 @@ with col_actions:
 
 st.divider()
 
-# Path index lookup
+# --- solution lookup ---
 path_index = {}
 if st.session_state.solution:
     path, total = st.session_state.solution
     for i, cell in enumerate(path, start=1):
         path_index[cell] = i
 
-# Click handler
+
+# --- click handler ---
 def click_cell(r: int, c: int):
     st.session_state.solution = None
     pos = (r, c)
@@ -252,7 +246,8 @@ def click_cell(r: int, c: int):
         st.session_state.obstacles.discard(pos)
         return
 
-# --- Grid (wrapped in a container so CSS targets only these buttons) ---
+
+# --- grid (fixed-px squares) ---
 st.markdown('<div id="cellgrid">', unsafe_allow_html=True)
 
 for r in range(N):
@@ -265,10 +260,8 @@ for r in range(N):
         val = st.session_state.cell_values.get(pos)
         on_path = path_index.get(pos)
 
-        # Color-coded label
         if on_path:
-            main_text = f"{on_path}"
-            color_token = ""
+            main_text, color_token = f"{on_path}", ""
         elif is_ob:
             main_text, color_token = "X", "🟥"
         elif is_start:
@@ -295,74 +288,13 @@ for r in range(N):
         else: help_txt.append("Value=1")
         if on_path: help_txt.append(f"Path idx={on_path}")
 
-        if cols[c].button(label, key=f"cell-{r}-{c}", help=", ".join(help_txt), use_container_width=True):
+        # fixed-size buttons (no use_container_width)
+        if cols[c].button(label, key=f"cell-{r}-{c}", help=", ".join(help_txt)):
             click_cell(r, c)
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# --- SVG arrows for the solved path ---
-if st.session_state.solution:
-    path, total = st.session_state.solution
-    if path:
-        # SVG canvas settings
-        cell_px = 60       # pixel size per cell (only affects the SVG, not buttons)
-        gap_px = 6         # gap to visually match st.columns gap a bit
-        W = N * (cell_px + gap_px) - gap_px
-        H = W
-
-        def center_of(rc):
-            r, c = rc
-            x = c * (cell_px + gap_px) + cell_px / 2
-            y = r * (cell_px + gap_px) + cell_px / 2
-            return x, y
-
-        # Build SVG paths between consecutive cells
-        lines = []
-        for i in range(len(path) - 1):
-            x1, y1 = center_of(path[i])
-            x2, y2 = center_of(path[i + 1])
-            lines.append(f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-                         f'stroke="black" stroke-width="3" marker-end="url(#arrow)" />')
-
-        cell_rects = []
-        for r in range(N):
-            for c in range(N):
-                pos = (r, c)
-                if pos in st.session_state.obstacles:
-                    color = "red"
-                elif pos == st.session_state.start:
-                    color = "deepskyblue"
-                elif pos == st.session_state.end:
-                    color = "purple"
-                elif st.session_state.cell_values.get(pos) == low_val:
-                    color = "limegreen"
-                elif st.session_state.cell_values.get(pos) == med_val:
-                    color = "dodgerblue"
-                elif st.session_state.cell_values.get(pos) == high_val:
-                    color = "gold"
-                else:
-                    color = "white"
-
-                cell_rects.append(
-                    f'<rect x="{c * (cell_px + gap_px)}" y="{r * (cell_px + gap_px)}" '
-                    f'width="{cell_px}" height="{cell_px}" fill="{color}" stroke="gray" />'
-                )
-
-        svg = f"""
-        <svg width="{W}" height="{H}" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="black" />
-            </marker>
-          </defs>
-          <!-- cells -->
-          {''.join(cell_rects)}
-          <!-- path with arrows -->
-          {''.join(lines)}
-        </svg>
-        """
-        st.markdown(svg, unsafe_allow_html=True)
-
+# --- result display ---
 st.divider()
 if st.session_state.solution is None:
     st.info("Click cells to configure, then press **Solve**.")
@@ -378,4 +310,3 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
-
