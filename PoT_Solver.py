@@ -177,4 +177,171 @@ with col_actions:
         st.session_state.solution = solve_max_value_path(N, st.session_state.start, st.session_state.end, obs, vals)
 
     c1, c2, c3 = st.columns(3)
-    if c
+    if c1.button("Clear Weights"):
+        for r in range(N):
+            for c in range(N):
+                if st.session_state.grid[r][c] in ("low", "med", "high"):
+                    st.session_state.grid[r][c] = "empty"
+        st.session_state.solution = None
+    if c2.button("Clear Obstacles"):
+        for r in range(N):
+            for c in range(N):
+                if st.session_state.grid[r][c] == "obs":
+                    st.session_state.grid[r][c] = "empty"
+        st.session_state.solution = None
+    if c3.button("Clear All (keep S/E)"):
+        st.session_state.grid = [["empty" for _ in range(N)] for _ in range(N)]
+        sr, sc = st.session_state.start
+        er, ec = st.session_state.end
+        st.session_state.grid[sr][sc] = "start"
+        st.session_state.grid[er][ec] = "end"
+        st.session_state.solution = None
+
+st.divider()
+
+# ------------------------
+# Apply tool on click
+# ------------------------
+def apply_tool(r: int, c: int):
+    st.session_state.solution = None
+    g = st.session_state.grid
+    t = st.session_state.tool
+    if t == "Erase":
+        if g[r][c] not in ("start", "end"):
+            g[r][c] = "empty"
+    elif t == "Obstacle":
+        if g[r][c] not in ("start", "end"):
+            g[r][c] = "obs" if g[r][c] != "obs" else "empty"
+    elif t in ("Low", "Med", "High"):
+        if g[r][c] not in ("start", "end"):
+            g[r][c] = t.lower()
+    elif t == "Start":
+        oldr, oldc = st.session_state.start
+        g[oldr][oldc] = "empty"
+        g[r][c] = "start"
+        st.session_state.start = (r, c)
+    elif t == "End":
+        oldr, oldc = st.session_state.end
+        g[oldr][oldc] = "empty"
+        g[r][c] = "end"
+        st.session_state.end = (r, c)
+
+# ------------------------
+# CSS: tight CSS Grid of forms; buttons fill each cell
+# ------------------------
+st.markdown(f"""
+<style>
+/* center page to grid width so columns/forms don't stretch */
+section.main > div.block-container {{
+  max-width: {GRID_W + 32}px !important;
+}}
+
+/* Grid wrapper: N columns of fixed CELL px with GAP px between */
+#gridwrap {{
+  display: grid;
+  grid-template-columns: repeat({N}, {CELL}px);
+  grid-auto-rows: {CELL}px;
+  gap: {GAP}px;
+  width: {GRID_W}px;
+  margin: 0 auto;
+}}
+
+/* Each Streamlit form behaves like a square tile */
+#gridwrap form {{
+  margin: 0 !important;
+  padding: 0 !important;
+  width: {CELL}px !important;
+  height: {CELL}px !important;
+}}
+
+/* Make the submit button fill the tile and color it */
+#gridwrap form [data-testid="baseButton-secondary"], 
+#gridwrap form button {{
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 1px solid rgba(0,0,0,0.25) !important;
+  border-radius: 8px !important;
+  line-height: 1 !important;
+  font-weight: 700 !important;
+  color: #102A43 !important; /* label color for S/E numbers if any */
+}}
+</style>
+""", unsafe_allow_html=True)
+
+# ------------------------
+# Grid: one <form> per square (no columns)
+# ------------------------
+st.markdown('<div id="gridwrap">', unsafe_allow_html=True)
+
+for r in range(N):
+    for c in range(N):
+        state = st.session_state.grid[r][c]
+        label = ""
+        if state == "start":
+            label = "S"
+        elif state == "end":
+            label = "E"
+        # For weights/obstacles we just show color
+
+        # Inline style for background color per tile
+        bg = COLORS[state]
+        with st.form(key=f"cell-{r}-{c}", clear_on_submit=True):
+            # style: set button background via inline style attribute
+            clicked = st.form_submit_button(
+                label if label else " ",
+                help=f"({r},{c}) {state}",
+                kwargs={"style": f"background-color:{bg};"}
+            )
+            if clicked:
+                apply_tool(r, c)
+
+st.markdown('</div>', unsafe_allow_html=True)
+
+st.divider()
+
+# ------------------------
+# Path overlay SVG (same visual size as grid)
+# ------------------------
+def center_of(rc: GridPos):
+    rr, cc = rc
+    x = cc * (CELL + GAP) + CELL / 2
+    y = rr * (CELL + GAP) + CELL / 2
+    return x, y
+
+if st.session_state.solution:
+    path, total = st.session_state.solution
+    # Draw full board rectangles (colors), then lines on top
+    rects = []
+    for rr in range(N):
+        for cc in range(N):
+            fill = COLORS[st.session_state.grid[rr][cc]]
+            rects.append(
+                f'<rect x="{cc*(CELL+GAP)}" y="{rr*(CELL+GAP)}" width="{CELL}" height="{CELL}" '
+                f'rx="6" ry="6" stroke="gray" fill="{fill}" />'
+            )
+    lines = []
+    for i in range(len(path)-1):
+        x1, y1 = center_of(path[i])
+        x2, y2 = center_of(path[i+1])
+        lines.append(
+            f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" stroke="black" stroke-width="3" marker-end="url(#arrow)" />'
+        )
+    svg = f"""
+    <svg width="{GRID_W}" height="{GRID_W}" viewBox="0 0 {GRID_W} {GRID_W}" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="black" />
+        </marker>
+      </defs>
+      {''.join(rects)}
+      {''.join(lines)}
+    </svg>
+    """
+    st.markdown(svg, unsafe_allow_html=True)
+    st.success(f"Max value: {total} | Path length: {len(path)}")
+else:
+    st.info("Click tiles to configure, then press **Solve**.")
