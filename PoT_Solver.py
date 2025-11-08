@@ -191,13 +191,13 @@ with col_vals:
     r1c1, r1c2 = st.columns(2)
     r2c1, r2c2 = st.columns(2)
     with r1c1:
-        low_val  = st.number_input("Low",  min_value=0, max_value=999, value=1,  step=1)
+        low_val  = st.number_input("Low",  min_value=0, max_value=999, value=4,  step=1)
     with r1c2:
-        med_val  = st.number_input("Med",  min_value=0, max_value=999, value=3,  step=1)
+        med_val  = st.number_input("Med",  min_value=0, max_value=999, value=8,  step=1)
     with r2c1:
-        high_val = st.number_input("High", min_value=0, max_value=999, value=5,  step=1)
+        high_val = st.number_input("High", min_value=0, max_value=999, value=20,  step=1)
     with r2c2:
-        myth_val = st.number_input("Mythical", min_value=0, max_value=999, value=30, step=1)
+        myth_val = st.number_input("Mythical", min_value=0, max_value=999, value=60, step=1)
 
 with col_actions:
     # Solve button stays full width at top
@@ -417,6 +417,7 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
+
 
 
 
