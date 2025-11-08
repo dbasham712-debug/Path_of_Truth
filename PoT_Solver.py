@@ -208,33 +208,39 @@ def click_cell(r: int, c: int):
     st.session_state.solution = None
     pos = (r, c)
     tool = st.session_state.tool
+
     if tool == "Obstacle":
         if pos not in (st.session_state.start, st.session_state.end):
             if pos in st.session_state.obstacles:
                 st.session_state.obstacles.remove(pos)
             else:
                 st.session_state.obstacles.add(pos)
-        return
-    if tool == "Start":
+        st.rerun()
+
+    elif tool == "Start":
         st.session_state.obstacles.discard(pos)
         if pos == st.session_state.end:
             st.session_state.end = None
         st.session_state.start = pos
-        return
-    if tool == "End":
+        st.rerun()
+
+    elif tool == "End":
         st.session_state.obstacles.discard(pos)
         if pos == st.session_state.start:
             st.session_state.start = None
         st.session_state.end = pos
-        return
-    if tool in ("Low", "Med", "High"):
+        st.rerun()
+
+    elif tool in ("Low", "Med", "High"):
         v = {"Low": low_val, "Med": med_val, "High": high_val}[tool]
         st.session_state.cell_values[pos] = int(v)
-        return
-    if tool == "Erase":
+        st.rerun()
+
+    elif tool == "Erase":
         st.session_state.cell_values.pop(pos, None)
         st.session_state.obstacles.discard(pos)
-        return
+        st.rerun()
+
 
 # Grid
 for r in range(N):
@@ -357,3 +363,4 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
+
