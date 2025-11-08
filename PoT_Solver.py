@@ -128,19 +128,18 @@ st.set_page_config(page_title="5x5 Weighted Path Solver", page_icon="🧩", layo
 # --- square buttons (CSS) ---
 st.markdown("""
 <style>
-div[data-testid="stButton"] > button {
-  width: 100% !important;
-  aspect-ratio: 1 / 1 !important;
-  height: auto !important;
-  min-height: 0 !important;
-  padding: 0 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  line-height: 1 !important;
-  white-space: nowrap !important;
-  overflow: hidden !important;
-  text-overflow: ellipsis !important;
+/* Make toolbar buttons compact */
+#toolbar div[data-testid="stButton"] > button {
+  height: 2.25rem !important;
+  padding: 0.25rem 0.6rem !important;
+  font-size: 0.9rem !important;
+}
+
+/* Make grid button text easier to read */
+#grid div[data-testid="stButton"] > button {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji" !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -387,6 +386,7 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
+
 
 
 
