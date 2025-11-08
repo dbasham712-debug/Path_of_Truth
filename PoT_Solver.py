@@ -143,6 +143,19 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
+st.markdown("""
+<style>
+#action-buttons div[data-testid="stButton"] > button {
+  height: 2.2rem !important;
+  font-size: 0.85rem !important;
+  white-space: normal !important;
+  word-wrap: break-word !important;
+  line-height: 1.1 !important;
+  padding: 0.3rem !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 
 # Init session state
 if "start" not in st.session_state:
@@ -187,34 +200,47 @@ with col_vals:
         myth_val = st.number_input("Mythical", min_value=0, max_value=999, value=30, step=1)
 
 with col_actions:
+    # Solve button stays full width at top
     if st.button("Solve", use_container_width=True):
         s, e = st.session_state.start, st.session_state.end
         res = solve_max_value_path(N, s, e, st.session_state.obstacles, st.session_state.cell_values)
         st.session_state.solution = res
-    c1, c2, c3, c4 = st.columns(4)
-    if c1.button("Clear Values"):
-        st.session_state.cell_values = {}
-        st.session_state.solution = None
-        st.rerun()
-    if c2.button("Clear Obstacles"):
-        st.session_state.obstacles = set()
-        st.session_state.solution = None
-        st.rerun()
-    if c3.button("Clear All (keep S/E)"):
-        st.session_state.obstacles = set()
-        st.session_state.cell_values = {}
-        st.session_state.solution = None
-        st.rerun()
-    if c4.button("All Low"):
-        for r in range(N):
-            for c in range(N):
-                pos = (r, c)
-                if pos not in st.session_state.obstacles:
-                    st.session_state.cell_values[pos] = int(low_val)
-        st.session_state.solution = None
-        st.rerun()
 
-st.markdown('</div>', unsafe_allow_html=True)  # end #toolbar
+    # 2×2 compact grid of management buttons
+    st.markdown("<div id='action-buttons'>", unsafe_allow_html=True)
+    r1c1, r1c2 = st.columns(2)
+    r2c1, r2c2 = st.columns(2)
+
+    with r1c1:
+        if st.button("Clear Values", use_container_width=True):
+            st.session_state.cell_values = {}
+            st.session_state.solution = None
+            st.rerun()
+
+    with r1c2:
+        if st.button("Clear Obstacles", use_container_width=True):
+            st.session_state.obstacles = set()
+            st.session_state.solution = None
+            st.rerun()
+
+    with r2c1:
+        if st.button("Clear All (keep S/E)", use_container_width=True):
+            st.session_state.obstacles = set()
+            st.session_state.cell_values = {}
+            st.session_state.solution = None
+            st.rerun()
+
+    with r2c2:
+        if st.button("All Low", use_container_width=True):
+            for r in range(N):
+                for c in range(N):
+                    pos = (r, c)
+                    if pos not in st.session_state.obstacles:
+                        st.session_state.cell_values[pos] = int(low_val)
+            st.session_state.solution = None
+            st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
 
 st.divider()
 
@@ -391,6 +417,7 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
+
 
 
 
