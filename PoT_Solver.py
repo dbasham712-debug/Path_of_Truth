@@ -123,48 +123,46 @@ def solve_max_value_path(
 # Streamlit UI
 # --------------
 st.set_page_config(page_title="5x5 Weighted Path Solver", page_icon="🧩", layout="centered")
-SQUARE_PX = 70   # cell size
-GAP_PX    = 6    # gutter between cells
+SQUARE_PX = 70   # cell size in px
+GAP_PX    = 6    # gap between cells in px
+N = 5            # grid width (keep in sync with your N)
 
 st.markdown(f"""
 <style>
-/* --- square, fixed-size grid buttons --- */
-#cellgrid [data-testid="stButton"] > button {{
-  width: {SQUARE_PX}px !important;
-  height: {SQUARE_PX}px !important;
-  min-width: 0 !important;
-  min-height: 0 !important;
+/* Make every row in the grid a fixed CSS grid instead of flex columns */
+#cellgrid [data-testid="stHorizontalBlock"] {{
+  display: grid !important;
+  grid-template-columns: repeat({N}, {SQUARE_PX}px) !important;
+  grid-auto-rows: {SQUARE_PX}px !important;
+  gap: {GAP_PX}px !important;              /* exact gutter you want */
+  justify-content: start !important;       /* pack tightly from left */
+  align-items: start !important;
   padding: 0 !important;
-  margin: 0 !important;                   /* no extra margins */
+  margin: 0 !important;
+}}
+
+/* Ensure Streamlit column wrappers don't add size/spacing */
+#cellgrid [data-testid="column"] {{
+  width: {SQUARE_PX}px !important;
+  max-width: {SQUARE_PX}px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  flex: 0 0 {SQUARE_PX}px !important;
+}}
+
+/* True square buttons that fill the grid cells, no extra margins */
+#cellgrid [data-testid="stButton"] > button {{
+  width: 100% !important;
+  height: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 6px !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   line-height: 1 !important;
-  border-radius: 6px !important;
   white-space: nowrap !important;
   font-weight: 600 !important;
-}}
-
-/* --- make Streamlit columns NOT stretch in the grid --- */
-#cellgrid [data-testid="column"] {{
-  flex: 0 0 auto !important;              /* don't grow, don't shrink */
-  width: auto !important;                 /* size to content (the button) */
-}}
-#cellgrid [data-testid="stHorizontalBlock"] {{
-  display: flex !important;
-  flex-wrap: nowrap !important;
-  gap: {GAP_PX}px !important;             /* actual gutter between cells */
-  justify-content: flex-start !important; /* pack columns tightly from the left */
-  align-items: center !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}}
-
-/* inner wrapper: no extra padding */
-#cellgrid [data-testid="column"] > div {{
-  padding: 0 !important;
-  margin: 0 !important;
-  display: block !important;
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -324,6 +322,7 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
+
 
 
 
