@@ -123,34 +123,41 @@ def solve_max_value_path(
 # Streamlit UI
 # --------------
 st.set_page_config(page_title="5x5 Weighted Path Solver", page_icon="🧩", layout="centered")
+SQUARE_PX = 70    # size of each cell
+GAP_PX    = 4     # space between cells (try 2–6)
 
-SQUARE_PX = 70  # ← adjust this to control square size
 st.markdown(f"""
 <style>
-/* only affect buttons inside our grid */
+/* Square, fixed-size grid buttons only */
 #cellgrid [data-testid="stButton"] > button {{
   width: {SQUARE_PX}px !important;
   height: {SQUARE_PX}px !important;
   min-width: 0 !important;
   min-height: 0 !important;
   padding: 0 !important;
-  margin: 1px !important;          /* ↓ smaller gap between squares */
+  margin: 0 !important;                 /* remove extra spacing on the button itself */
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
   line-height: 1 !important;
+  border-radius: 6px !important;
   white-space: nowrap !important;
   font-weight: 600 !important;
-  border-radius: 6px !important;
 }}
 
-/* tighter grid alignment */
+/* Streamlit lays out columns in a grid with a built-in gap.
+   Override that gap ONLY inside #cellgrid. */
+#cellgrid [data-testid="stHorizontalBlock"] {{
+  gap: {GAP_PX}px !important;          /* horizontal+vertical gutter between cells */
+}}
+
+/* Kill any padding inside each column wrapper so buttons sit flush */
 #cellgrid [data-testid="column"] > div {{
+  padding: 0 !important;
+  margin: 0 !important;
   display: flex !important;
   justify-content: center !important;
   align-items: center !important;
-  padding: 0 !important;
-  margin: 0 !important;
 }}
 </style>
 """, unsafe_allow_html=True)
@@ -251,7 +258,7 @@ def click_cell(r: int, c: int):
 st.markdown('<div id="cellgrid">', unsafe_allow_html=True)
 
 for r in range(N):
-    cols = st.columns(N, gap="none")
+    cols = st.columns(N, gap="small")
     for c in range(N):
         pos = (r, c)
         is_start = (pos == st.session_state.start)
@@ -310,4 +317,5 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
+
 
