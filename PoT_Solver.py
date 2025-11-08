@@ -166,16 +166,18 @@ st.caption("Select a tool, click cells to configure, then hit **Solve**.")
 col_tool, col_vals, col_actions = st.columns([1.1, 1.2, 1.2])
 with col_tool:
     tool = st.radio(
-        "Tool",
-        ["Start", "End", "Obstacle", "Low", "Med", "High", "Erase"],
-        index=["Start", "End", "Obstacle", "Low", "Med", "High", "Erase"].index(st.session_state.tool),
+    "Tool",
+    ["Start", "End", "Obstacle", "Low", "Med", "High", "Mythical", "Erase"],
+    index=["Start", "End", "Obstacle", "Low", "Med", "High", "Mythical", "Erase"].index(st.session_state.tool),
     )
     st.session_state.tool = tool
 
 with col_vals:
-    low_val = st.number_input("Low", min_value=0, max_value=999, value=1, step=1)
-    med_val = st.number_input("Med", min_value=0, max_value=999, value=3, step=1)
-    high_val = st.number_input("High", min_value=0, max_value=999, value=5, step=1)
+    low_val  = st.number_input("Low",  min_value=0, max_value=999, value=2,  step=1)
+    med_val  = st.number_input("Med",  min_value=0, max_value=999, value=4,  step=1)
+    high_val = st.number_input("High", min_value=0, max_value=999, value=10,  step=1)
+    myth_val = st.number_input("Mythical", min_value=0, max_value=999, value=30, step=1)
+
 
 with col_actions:
     if st.button("Solve", use_container_width=True):
@@ -231,10 +233,11 @@ def click_cell(r: int, c: int):
         st.session_state.end = pos
         st.rerun()
 
-    elif tool in ("Low", "Med", "High"):
-        v = {"Low": low_val, "Med": med_val, "High": high_val}[tool]
+    elif tool in ("Low", "Med", "High", "Mythical"):
+        v = {"Low": low_val, "Med": med_val, "High": high_val, "Mythical": myth_val}[tool]
         st.session_state.cell_values[pos] = int(v)
         st.rerun()
+
 
     elif tool == "Erase":
         st.session_state.cell_values.pop(pos, None)
@@ -270,6 +273,8 @@ for r in range(N):
                 color_token = "🟦"
             elif val == high_val:
                 color_token = "🟨"
+            elif val == myth_val:
+                color_token = "🟪"  
             else:
                 color_token = "⬜"
             main_text = str(val if val is not None else 1)
@@ -325,8 +330,11 @@ if st.session_state.solution:
                     color = "dodgerblue"
                 elif st.session_state.cell_values.get(pos) == high_val:
                     color = "gold"
+                elif st.session_state.cell_values.get(pos) == myth_val:
+                    color = "purple"
                 else:
                     color = "white"
+
 
                 cell_rects.append(
                     f'<rect x="{c * (cell_px + gap_px)}" y="{r * (cell_px + gap_px)}" '
@@ -363,4 +371,5 @@ with st.expander("Show configuration"):
     st.write(f"End: {st.session_state.end}")
     st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
     st.json({str(k): v for k, v in st.session_state.cell_values.items()})
+
 
