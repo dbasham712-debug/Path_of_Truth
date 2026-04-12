@@ -1,429 +1,639 @@
-# streamlit app: 5x5 Weighted Path Solver (click-to-setup)
-
-from collections import deque
-from typing import Dict, List, Optional, Set, Tuple
-
-import streamlit as st
-
-GridPos = Tuple[int, int]
-DIRS = [(-1, 0), (1, 0), (0, -1), (0, 1)]
-N = 5  # grid size
-
-
-# ------------------------
-# Core grid/solver helpers
-# ------------------------
-def in_bounds(r: int, c: int, n: int = N) -> bool:
-    return 0 <= r < n and 0 <= c < n
-
-
-def neighbors(pos: GridPos, n: int = N):
-    r, c = pos
-    for dr, dc in DIRS:
-        nr, nc = r + dr, c + dc
-        if in_bounds(nr, nc, n):
-            yield (nr, nc)
-
-
-def reachable(n: int, start: GridPos, end: GridPos,
-              obstacles: Set[GridPos], visited: Set[GridPos]) -> bool:
-    blocked = (obstacles | visited) - {start}
-    if start in blocked or end in blocked:
-        return False
-    q = deque([start])
-    seen = {start}
-    while q:
-        p = q.popleft()
-        if p == end:
-            return True
-        for nb in neighbors(p, n):
-            if nb not in seen and nb not in blocked:
-                seen.add(nb)
-                q.append(nb)
-    return False
-
-
-def reachable_cells(n: int, start: GridPos,
-                    obstacles: Set[GridPos], visited: Set[GridPos]) -> Set[GridPos]:
-    blocked = (obstacles | visited) - {start}
-    if start in blocked:
-        return set()
-    q = deque([start])
-    seen = {start}
-    while q:
-        p = q.popleft()
-        for nb in neighbors(p, n):
-            if nb not in seen and nb not in blocked:
-                seen.add(nb)
-                q.append(nb)
-    return seen
-
-
-def solve_max_value_path(
-    n: int,
-    start: GridPos,
-    end: GridPos,
-    obstacles: Set[GridPos],
-    values: Dict[GridPos, int],
-) -> Optional[Tuple[List[GridPos], int]]:
-    if start == end:
-        return ([start], values.get(start, 1)) if (start not in obstacles) else None
-    if start in obstacles or end in obstacles:
-        return None
-
-    def cell_value(cell: GridPos) -> int:
-        return values.get(cell, 1)
-
-    if not reachable(n, start, end, obstacles, set()):
-        return None
-
-    free_cells = {(r, c) for r in range(n) for c in range(n)} - obstacles
-    degree = {cell: sum(((cell[0]+dr, cell[1]+dc) in free_cells) for dr, dc in DIRS) for cell in free_cells}
-
-    best_path: List[GridPos] = []
-    best_val: int = -10**12
-    visited: Set[GridPos] = set([start])
-
-    def optimistic_bound(cur: GridPos, cur_sum: int) -> int:
-        rcells = reachable_cells(n, cur, obstacles, visited)
-        return cur_sum + sum(cell_value(c) for c in rcells if c != cur)
-
-    def manhattan(a: GridPos, b: GridPos) -> int:
-        return abs(a[0]-b[0]) + abs(a[1]-b[1])
-
-    def dfs(cur: GridPos, path: List[GridPos], cur_sum: int):
-        nonlocal best_path, best_val
-
-        if not reachable(n, cur, end, obstacles, visited):
-            return
-        if optimistic_bound(cur, cur_sum) < best_val:
-            return
-
-        if cur == end:
-            if (cur_sum > best_val) or (cur_sum == best_val and len(path) > len(best_path)):
-                best_val = cur_sum
-                best_path = path.copy()
-            return
-
-        nxt = [nb for nb in neighbors(cur, n) if nb not in obstacles and nb not in visited]
-        nxt.sort(key=lambda x: (-cell_value(x), degree.get(x, 0), manhattan(x, end)))
-        for nb in nxt:
-            visited.add(nb)
-            path.append(nb)
-            dfs(nb, path, cur_sum + cell_value(nb))
-            path.pop()
-            visited.remove(nb)
-
-    dfs(start, [start], cell_value(start))
-    if not best_path:
-        return None
-    return best_path, best_val
-
-
-# --------------
-# Streamlit UI
-# --------------
-st.set_page_config(page_title="5x5 Weighted Path Solver", page_icon="🧩", layout="centered")
-
-# --- square buttons (CSS) ---
-st.markdown("""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Path of Truth Optimizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Cinzel+Decorative:wght@700;900&family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
 <style>
-/* Make toolbar buttons compact */
-#toolbar div[data-testid="stButton"] > button {
-  height: 2.25rem !important;
-  padding: 0.25rem 0.6rem !important;
-  font-size: 0.9rem !important;
+:root{
+  --bg:#070710;--bg-mid:#0e0e1a;--bg-card:#121220;--bg-card2:#161626;
+  --border-dim:#1e1e38;--border-br:#2e2e50;
+  --text:#ddd8cc;--text-dim:#606075;
+  --gold:#c8a020;--gold-br:#f0c840;--gold-glow:rgba(200,160,32,.12);
+  --c-wh:#c0c0c0;--bg-wh:#1c1c28;--bd-wh:#777;
+  --c-gr:#3dba4e;--bg-gr:#0a1e0c;--bd-gr:#3dba4e;
+  --c-bl:#4a9eff;--bg-bl:#071228;--bd-bl:#4a9eff;
+  --c-go:#ffc52e;--bg-go:#231200;--bd-go:#ffc52e;
+  --c-pk:#ff4dab;--bg-pk:#230818;--bd-pk:#ff4dab;
+  --c-rd:#e03030;--bg-rd:#1e0606;--bd-rd:#cc2222;
+  --c-sp:#9966ff;--bg-sp:#150828;--bd-sp:#9966ff;
+  --c-gy:#bbb;--bg-gy:#181828;--bd-gy:#777;
 }
-
-/* Make grid button text easier to read */
-#grid div[data-testid="stButton"] > button {
-  font-size: 20px !important;
-  font-weight: 700 !important;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji" !important;
-}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Crimson Text',Georgia,serif;min-height:100vh;
+  background-image:radial-gradient(ellipse 50% 35% at 10% 0%,rgba(200,160,32,.05) 0%,transparent 70%),
+  radial-gradient(ellipse 40% 30% at 90% 100%,rgba(74,158,255,.05) 0%,transparent 70%)}
+header{padding:2rem 1rem 1.6rem;text-align:center;border-bottom:1px solid var(--border-dim);position:relative}
+header::after{content:'';position:absolute;bottom:-1px;left:50%;transform:translateX(-50%);width:260px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.htitle{font-family:'Cinzel Decorative',serif;font-size:1.55rem;font-weight:900;color:var(--gold-br);text-shadow:0 0 40px rgba(200,160,32,.5);letter-spacing:.08em}
+.hsub{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.32em;text-transform:uppercase;color:var(--text-dim);margin-top:.3rem}
+.wrap{max-width:1100px;margin:0 auto;padding:1.5rem 1rem;display:grid;gap:1.5rem}
+.card{background:var(--bg-card);border:1px solid var(--border-dim);border-radius:10px;padding:1.5rem;position:relative;overflow:hidden}
+.card::before{content:'';position:absolute;top:0;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,var(--border-br),transparent)}
+.slabel{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.28em;text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:.5rem;margin-bottom:1rem}
+.slabel::after{content:'';flex:1;height:1px;background:var(--border-dim)}
+/* SLOTS */
+.slots{display:grid;grid-template-columns:repeat(5,1fr);gap:.75rem}
+@media(max-width:600px){.slots{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:380px){.slots{grid-template-columns:repeat(2,1fr)}}
+.slot{border:2px dashed var(--border-br);border-radius:8px;aspect-ratio:3/4;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;cursor:pointer;transition:all .2s;overflow:hidden;background:var(--bg-mid)}
+.slot:hover{border-color:var(--gold);background:var(--gold-glow)}
+.slot.has-img{border-style:solid;border-color:var(--border-br)}
+.slot input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.slot-num{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.15em;color:var(--text-dim);margin-bottom:.4rem}
+.slot-icon{font-size:1.4rem;margin-bottom:.2rem}
+.slot-hint{font-size:.62rem;color:var(--text-dim);text-align:center;padding:0 .3rem}
+.slot-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:6px}
+.slot-overlay{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
+.slot:hover .slot-overlay{opacity:1}
+.slot-fname{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.75);font-size:.58rem;padding:.25rem .4rem;text-align:center;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot-del{background:rgba(200,40,40,.8);border:none;border-radius:4px;color:#fff;font-size:.65rem;font-family:'Cinzel',serif;padding:.3rem .7rem;cursor:pointer;letter-spacing:.1em}
+/* CONFIG */
+.cfg-row{display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;margin-top:1rem}
+.field{display:flex;flex-direction:column;gap:.28rem}
+.field label{font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.18em;text-transform:uppercase;color:var(--text-dim)}
+select,input{background:var(--bg-mid);border:1px solid var(--border-br);border-radius:5px;color:var(--text);padding:.42rem .7rem;font-family:'Crimson Text',serif;font-size:.9rem;outline:none;transition:border-color .2s;width:100%}
+select:focus,input:focus{border-color:var(--gold)}
+.cust-pts{display:none;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-top:.85rem}
+.cust-pts.show{display:grid}
+@media(max-width:460px){.cust-pts.show{grid-template-columns:repeat(2,1fr)}}
+/* BUTTONS */
+.brow{display:flex;gap:.65rem;flex-wrap:wrap;margin-top:1rem}
+.btn{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;border:none;border-radius:5px;padding:.6rem 1.3rem;cursor:pointer;transition:all .18s;display:inline-flex;align-items:center;gap:.4rem;white-space:nowrap}
+.btn-gold{background:linear-gradient(135deg,#c8a020,#f0c840);color:#06040e;font-weight:700;box-shadow:0 2px 10px rgba(200,160,32,.25)}
+.btn-gold:hover:not(:disabled){box-shadow:0 0 22px rgba(200,160,32,.5);transform:translateY(-1px)}
+.btn-gold:disabled{opacity:.4;cursor:not-allowed}
+.btn-ghost{background:var(--bg-mid);color:var(--text);border:1px solid var(--border-br)}
+.btn-ghost:hover{border-color:var(--gold);color:var(--gold-br)}
+.btn-sm{padding:.32rem .7rem;font-size:.62rem}
+/* COMPARE */
+.compare-banner{background:linear-gradient(135deg,rgba(200,160,32,.15),rgba(200,160,32,.05));border:1px solid rgba(200,160,32,.35);border-radius:10px;padding:1.25rem;text-align:center;margin-bottom:1.5rem}
+.compare-trophy{font-size:2.5rem;margin-bottom:.4rem}
+.compare-title{font-family:'Cinzel Decorative',serif;font-size:1.1rem;font-weight:700;color:var(--gold-br)}
+.compare-sub{font-size:.85rem;color:var(--text-dim);margin-top:.25rem}
+.score-row{display:grid;gap:.65rem;margin-bottom:1.5rem}
+.score-badge{background:var(--bg-mid);border:2px solid var(--border-dim);border-radius:8px;padding:.75rem .9rem;display:flex;flex-direction:column;align-items:center;gap:.15rem;position:relative;transition:all .2s}
+.score-badge.best{border-color:var(--gold);background:rgba(200,160,32,.1);box-shadow:0 0 20px rgba(200,160,32,.2)}
+.score-badge.best::after{content:'🏆';position:absolute;top:-12px;font-size:1.2rem}
+.badge-num{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim)}
+.badge-score{font-family:'Cinzel',serif;font-size:1.6rem;font-weight:700;color:var(--gold-br)}
+.badge-score.dimmed{color:var(--text-dim);font-size:1.2rem}
+.badge-cells{font-size:.72rem;color:var(--text-dim)}
+.badge-thumb{width:42px;height:52px;object-fit:cover;border-radius:4px;border:1px solid var(--border-dim);margin-bottom:.2rem}
+/* RESULT CARDS */
+.results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:1.25rem}
+@media(max-width:500px){.results-grid{grid-template-columns:1fr}}
+.result-card{background:var(--bg-card2);border:1px solid var(--border-dim);border-radius:8px;padding:1.1rem;position:relative}
+.result-card.best{border-color:var(--gold);box-shadow:0 0 20px rgba(200,160,32,.15)}
+.result-header{display:flex;align-items:center;gap:.75rem;margin-bottom:.9rem}
+.result-thumb{width:48px;height:60px;object-fit:cover;border-radius:5px;border:1px solid var(--border-br);flex-shrink:0}
+.result-meta{flex:1}
+.result-title{font-family:'Cinzel',serif;font-size:.8rem;font-weight:600;color:var(--text)}
+.result-score-big{font-family:'Cinzel',serif;font-size:1.5rem;font-weight:700;color:var(--gold-br);line-height:1}
+.result-detail{font-size:.75rem;color:var(--text-dim);margin-top:.1rem}
+.best-badge{background:var(--gold);color:#06040e;font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.15em;text-transform:uppercase;padding:.2rem .5rem;border-radius:3px;font-weight:700}
+/* MINI GRID */
+.mg5{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;position:relative;width:100%}
+.mcell{aspect-ratio:1;border-radius:4px;border:1.5px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:1px;overflow:hidden;position:relative}
+.mcell.lit{filter:brightness(1.5);border-width:2.5px}
+.mc-top{font-size:.42rem;font-family:'Cinzel',serif;text-transform:uppercase;opacity:.55;line-height:1}
+.mc-pts{font-size:.72rem;font-family:'Cinzel',serif;font-weight:700;line-height:1;margin-top:1px}
+.mc-val{font-size:.42rem;opacity:.45;line-height:1;margin-top:1px}
+.cell-white  {background:var(--bg-wh);border-color:var(--bd-wh);color:var(--c-wh)}
+.cell-green  {background:var(--bg-gr);border-color:var(--bd-gr);color:var(--c-gr)}
+.cell-blue   {background:var(--bg-bl);border-color:var(--bd-bl);color:var(--c-bl)}
+.cell-gold   {background:var(--bg-go);border-color:var(--bd-go);color:var(--c-go)}
+.cell-pink   {background:var(--bg-pk);border-color:var(--bd-pk);color:var(--c-pk)}
+.cell-red    {background:var(--bg-rd);border-color:var(--bd-rd);color:var(--c-rd)}
+.cell-special{background:var(--bg-sp);border-color:var(--bd-sp);color:var(--c-sp)}
+.cell-gray   {background:var(--bg-gy);border-color:var(--bd-gy);color:var(--c-gy)}
+/* RED PANEL */
+.red-panel{border-radius:6px;padding:.75rem 1rem;margin-top:.75rem;font-size:.8rem;line-height:1.9}
+.red-panel.clean{background:rgba(61,186,78,.08);border:1px solid rgba(61,186,78,.25)}
+.red-panel.warn{background:rgba(200,40,40,.1);border:1px solid rgba(200,40,40,.3)}
+.rp-title{font-family:'Cinzel',serif;font-size:.56rem;letter-spacing:.2em;text-transform:uppercase;margin-bottom:.35rem}
+.rp-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
+.rp-ok{color:var(--c-gr)}
+.rp-fail{color:var(--c-rd)}
+/* MESSAGES */
+.msg{padding:.6rem .9rem;border-radius:6px;font-size:.83rem;margin-top:.65rem}
+.msg-err{background:rgba(200,40,40,.12);border:1px solid rgba(200,40,40,.3);color:#ff9090}
+.msg-ok{background:rgba(60,185,70,.12);border:1px solid rgba(60,185,70,.3);color:#90e090}
+.msg-info{background:rgba(74,158,255,.1);border:1px solid rgba(74,158,255,.3);color:#90c0ff}
+/* LOADER */
+.loader{display:none;position:fixed;inset:0;background:rgba(7,7,16,.92);z-index:1000;align-items:center;justify-content:center;flex-direction:column;gap:.9rem}
+.loader.show{display:flex}
+.spin{width:46px;height:46px;border:3px solid var(--border-dim);border-top-color:var(--gold);border-radius:50%;animation:rot .9s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.load-txt{font-family:'Cinzel',serif;color:var(--gold-br);letter-spacing:.25em;font-size:.76rem}
+.load-sub{font-size:.7rem;color:var(--text-dim)}
+.load-prog{font-size:.7rem;color:var(--gold);margin-top:.1rem}
+/* MODAL */
+.mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:500;align-items:center;justify-content:center}
+.mbg.show{display:flex}
+.modal{background:var(--bg-card);border:1px solid var(--border-br);border-radius:10px;padding:1.4rem;width:90%;max-width:360px}
+.modal-title{font-family:'Cinzel',serif;font-size:.9rem;color:var(--gold);margin-bottom:.9rem}
+.mrow{display:flex;gap:.65rem;justify-content:flex-end;margin-top:.9rem}
+.hidden{display:none!important}
+.dim{color:var(--text-dim)}
 </style>
-""", unsafe_allow_html=True)
-st.markdown("""
-<style>
-#action-buttons div[data-testid="stButton"] > button {
-  height: 2.2rem !important;
-  font-size: 0.85rem !important;
-  white-space: normal !important;
-  word-wrap: break-word !important;
-  line-height: 1.1 !important;
-  padding: 0.3rem !important;
+</head>
+<body>
+
+<header>
+  <span style="font-size:1.8rem;display:block;margin-bottom:.35rem">⚔️</span>
+  <div class="htitle">Path of Truth Optimizer</div>
+  <div class="hsub">Up to 5 Screenshots · Auto-Solve · Best Path Finder</div>
+</header>
+
+<div class="wrap">
+
+<!-- UPLOAD & CONFIG -->
+<div class="card" id="card-up">
+  <div class="slabel">① Upload Grids (1–5 screenshots)</div>
+  <div class="slots" id="slotsRow"></div>
+  <div style="font-size:.76rem;color:var(--text-dim);margin-top:.6rem;text-align:center">
+    Click any slot to upload · All will be solved and compared
+  </div>
+
+  <div style="margin-top:1.2rem">
+    <div class="slabel">② Ascension Level</div>
+    <div class="cfg-row">
+      <div class="field" style="min-width:160px">
+        <label>Level</label>
+        <select id="ascSel" onchange="onAscChange()">
+          <option value="default">Default</option>
+          <option value="lv4">Level 4</option>
+          <option value="lv5">Level 5</option>
+          <option value="custom">Custom</option>
+        </select>
+      </div>
+      <div class="field" style="flex:1">
+        <label>Tier Values</label>
+        <div id="ptsPrev" style="font-size:.82rem;color:var(--text-dim);line-height:1.8;padding:.42rem 0"></div>
+      </div>
+    </div>
+    <div class="cust-pts" id="custPts">
+      <div class="field"><label>⬜ Common</label><input type="number" id="p_w" value="1" min="0" onchange="refreshPts()"></div>
+      <div class="field"><label>🟩 Rare</label><input type="number" id="p_g" value="2" min="0" onchange="refreshPts()"></div>
+      <div class="field"><label>🔷 Epic</label><input type="number" id="p_b" value="4" min="0" onchange="refreshPts()"></div>
+      <div class="field"><label>🟡 Legend.</label><input type="number" id="p_go" value="8" min="0" onchange="refreshPts()"></div>
+      <div class="field"><label>💜 Mythic</label><input type="number" id="p_p" value="16" min="0" onchange="refreshPts()"></div>
+    </div>
+  </div>
+
+  <div class="brow">
+    <button class="btn btn-gold" id="solveAllBtn" onclick="doSolveAll()" disabled>⚡ Parse &amp; Solve All</button>
+    <button class="btn btn-ghost btn-sm" onclick="clearAll()">✕ Clear All</button>
+  </div>
+  <div id="msgMain"></div>
+</div>
+
+<!-- RESULTS -->
+<div class="card hidden" id="card-results">
+  <div class="slabel">③ Results Comparison</div>
+  <div class="compare-banner">
+    <div class="compare-trophy">🏆</div>
+    <div class="compare-title" id="bannerTitle">—</div>
+    <div class="compare-sub" id="bannerSub">—</div>
+  </div>
+  <div class="score-row" id="scoreRow"></div>
+  <div class="results-grid" id="resultsGrid"></div>
+</div>
+
+</div>
+
+<!-- Loader -->
+<div class="loader" id="loader">
+  <div class="spin"></div>
+  <div class="load-txt" id="loadTxt">WORKING…</div>
+  <div class="load-sub" id="loadSub"></div>
+  <div class="load-prog" id="loadProg"></div>
+</div>
+
+<!-- Edit Modal -->
+<div class="mbg" id="editMod">
+  <div class="modal">
+    <div class="modal-title">Edit Cell — <span id="editPos"></span></div>
+    <div style="font-size:.78rem;color:var(--c-rd);background:rgba(200,40,40,.1);border:1px solid rgba(200,40,40,.25);border-radius:5px;padding:.5rem .75rem;margin-bottom:.75rem;line-height:1.5">
+      ⚠ For red cells: enter the value as <b>negative</b> (e.g. ÷13,312% → enter <b>-13312</b>). The solver always treats red cell values as penalties.
+    </div>
+    <div class="field" style="margin-bottom:.7rem">
+      <label>Type / Rarity</label>
+      <select id="editType">
+        <option value="gray">⬛ Gray / Start (S)</option>
+        <option value="special">🔮 Special / Flag (End)</option>
+        <option value="white">⬜ White / Common</option>
+        <option value="green">🟩 Green / Rare</option>
+        <option value="blue">🔷 Blue / Epic</option>
+        <option value="gold">🟡 Gold / Legendary</option>
+        <option value="pink">💜 Pink / Mythic</option>
+        <option value="red">🔴 Red / Negative</option>
+      </select>
+    </div>
+    <div class="field" style="margin-bottom:.7rem">
+      <label>Icon (for red eligibility check)</label>
+      <input type="text" id="editIcon" placeholder="coin, damage, defense, xp, lightning…">
+    </div>
+    <div class="field">
+      <label>Displayed Value — enter negative for ÷ cells (÷998 → -998)</label>
+      <input type="number" id="editVal" placeholder="e.g. -13312 or -998">
+    </div>
+    <div class="mrow">
+      <button class="btn btn-ghost btn-sm" onclick="closeMod()">Cancel</button>
+      <button class="btn btn-gold btn-sm" onclick="saveEdit()">✓ Save &amp; Re-solve</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONSTANTS ──────────────────────────────────────────────────────
+const MAX_SHOTS=5;
+const PRESETS={
+  default:{white:1,green:2,blue:4,gold:8,pink:16},
+  lv4:    {white:1,green:10,blue:20,gold:50,pink:150},
+  lv5:    {white:1,green:14,blue:28,gold:70,pink:210},
+};
+const RNAMES={white:'Common',green:'Rare',blue:'Epic',gold:'Legendary',pink:'Mythic',red:'Negative',special:'Flag',gray:'Start'};
+const RCOLORS={white:'var(--c-wh)',green:'var(--c-gr)',blue:'var(--c-bl)',gold:'var(--c-go)',pink:'var(--c-pk)',red:'var(--c-rd)',special:'var(--c-sp)',gray:'var(--c-gy)'};
+
+// ── STATE ──────────────────────────────────────────────────────────
+let shots=[], editTarget=null;
+
+// ── SLOT UI ────────────────────────────────────────────────────────
+function buildSlots(){
+  const row=document.getElementById('slotsRow');
+  row.innerHTML='';
+  for(let i=0;i<MAX_SHOTS;i++){
+    const s=shots[i], div=document.createElement('div');
+    div.className='slot'+(s?' has-img':'');
+    div.id=`slot-${i}`;
+    if(s){
+      div.innerHTML=`<img class="slot-img" src="${s.imgDataUrl}" alt="">
+        <div class="slot-overlay"><button class="slot-del" onclick="removeShot(${i},event)">✕ Remove</button></div>
+        <div class="slot-fname">#${i+1} ${s.fileName}</div>`;
+    } else {
+      div.innerHTML=`<input type="file" accept="image/*" onchange="addShot(${i},this)">
+        <div class="slot-num">SLOT ${i+1}</div>
+        <div class="slot-icon">+</div>
+        <div class="slot-hint">Click to upload</div>`;
+    }
+    row.appendChild(div);
+  }
+  document.getElementById('solveAllBtn').disabled=shots.length===0;
 }
-</style>
-""", unsafe_allow_html=True)
 
+function addShot(idx,input){
+  const file=input.files[0]; if(!file) return;
+  const r=new FileReader();
+  r.onload=e=>{
+    const url=e.target.result,b64=url.split(',')[1];
+    if(idx>=shots.length) shots.push({imgB64:b64,fileName:file.name,imgDataUrl:url,grid:null,startPos:null,endPos:null,result:null});
+    else shots[idx]={imgB64:b64,fileName:file.name,imgDataUrl:url,grid:null,startPos:null,endPos:null,result:null};
+    buildSlots();
+  };
+  r.readAsDataURL(file);
+}
+function removeShot(idx,e){ e.stopPropagation(); shots.splice(idx,1); buildSlots(); if(shots.length===0) hide('card-results'); }
+function clearAll(){ shots=[]; buildSlots(); hide('card-results'); setMsg('msgMain','',''); }
 
-# Init session state
-if "start" not in st.session_state:
-    st.session_state.start: GridPos = (4, 1)
-if "end" not in st.session_state:
-    st.session_state.end: GridPos = (0, 3)
-if "obstacles" not in st.session_state:
-    st.session_state.obstacles: Set[GridPos] = set()
-if "cell_values" not in st.session_state:
-    st.session_state.cell_values: Dict[GridPos, int] = {}
-if "solution" not in st.session_state:
-    st.session_state.solution = None
-if "tool" not in st.session_state:
-    st.session_state.tool = "Start"
+// ── CONFIG ─────────────────────────────────────────────────────────
+function onAscChange(){ document.getElementById('custPts').classList.toggle('show',document.getElementById('ascSel').value==='custom'); refreshPts(); }
+function getPreset(){
+  const v=document.getElementById('ascSel').value;
+  if(v==='custom') return{white:+document.getElementById('p_w').value||1,green:+document.getElementById('p_g').value||2,blue:+document.getElementById('p_b').value||4,gold:+document.getElementById('p_go').value||8,pink:+document.getElementById('p_p').value||16};
+  return{...(PRESETS[v]||PRESETS.default)};
+}
+function refreshPts(){
+  const p=getPreset();
+  document.getElementById('ptsPrev').innerHTML=`Common <b>${p.white}</b> · Rare <b style="color:var(--c-gr)">${p.green}</b> · Epic <b style="color:var(--c-bl)">${p.blue}</b> · Legend <b style="color:var(--c-go)">${p.gold}</b> · Mythic <b style="color:var(--c-pk)">${p.pink}</b> · Red <b style="color:var(--c-rd)">0 (free if covered)</b>`;
+}
+function tierScore(type){ if(type==='red'||type==='gray'||type==='special') return 0; return getPreset()[type]??0; }
 
-st.title("5×5 Weighted Path Solver")
-st.caption("Select a tool, click cells to configure, then hit **Solve**.")
+// ── CLAUDE PARSE ────────────────────────────────────────────────────
+const PARSE_PROMPT=`Analyze this mobile game screenshot containing a 5×5 grid of colored tiles.
 
-st.markdown('<div id="toolbar">', unsafe_allow_html=True)
+Return JSON with:
+1. "start": [row,col] — the gray/silver tile with a large "S". Row 0=top, col 0=left.
+2. "end": [row,col] — the purple tile with a flag/pennant icon.
+3. "grid": 5×5 array. For each tile:
+   - "type": "white" (common), "green" (rare), "blue" (epic), "gold" (legendary), "pink" (mythic), "red" (dark red cursed), "gray" (S tile), "special" (flag tile)
+   - "value": the numeric value shown. READ CAREFULLY:
+       • + symbol before the number → POSITIVE (e.g. +1,564% → 1564)
+       • ÷ symbol before the number (looks like a division sign) → NEGATIVE (e.g. ÷998% → -998, ÷13,312% → -13312)
+       CRITICAL: ÷ and + look similar but are DIFFERENT. ÷ has a line with dots; + has two crossing lines.
+       RED TILES almost always use ÷ (negative values). If a red tile shows a large number, it is almost certainly ÷ (negative), NOT +.
+       Strip commas and % signs from numbers. Tiles with no number → 0.
+   - "icon": the small stat icon on the tile. Assign a SHORT consistent lowercase name for each distinct icon. Same icon = same name every time. Examples: "coin","damage","defense","xp","lightning","critical","target". Use "misc" if unclear.
 
-col_tool, col_vals, col_actions = st.columns([1.1, 1.2, 1.2])
+KEY RULE: Red tiles (cursed tiles) ALWAYS impose a penalty. Their values are ALWAYS ÷ (negative). Double-check any red tile you are about to give a positive value to — it is very likely a misread ÷.
 
-with col_tool:
-    tool = st.radio(
-        "Tool",
-        ["Start", "End", "Obstacle", "Low", "Med", "High", "Mythical", "Erase"],
-        index=["Start", "End", "Obstacle", "Low", "Med", "High", "Mythical", "Erase"].index(st.session_state.tool),
-    )
-    st.session_state.tool = tool
+Return ONLY compact JSON, no markdown fences:
+{"start":[r,c],"end":[r,c],"grid":[[{"type":"gray","value":0,"icon":"misc"},...],...]}`
 
-with col_vals:
-    # 2×2 value inputs
-    r1c1, r1c2 = st.columns(2)
-    r2c1, r2c2 = st.columns(2)
-    with r1c1:
-        low_val  = st.number_input("Low",  min_value=0, max_value=999, value=4,  step=1)
-    with r1c2:
-        med_val  = st.number_input("Med",  min_value=0, max_value=999, value=8,  step=1)
-    with r2c1:
-        high_val = st.number_input("High", min_value=0, max_value=999, value=20,  step=1)
-    with r2c2:
-        myth_val = st.number_input("Mythical", min_value=0, max_value=999, value=60, step=1)
+async function doSolveAll(){
+  if(shots.length===0) return;
+  setMsg('msgMain','',''); hide('card-results');
 
-with col_actions:
-    # Solve button stays full width at top
-    if st.button("Solve", use_container_width=True):
-        s, e = st.session_state.start, st.session_state.end
-        res = solve_max_value_path(N, s, e, st.session_state.obstacles, st.session_state.cell_values)
-        st.session_state.solution = res
+  for(let i=0;i<shots.length;i++){
+    showLoad(`Parsing Screenshot ${i+1}/${shots.length}…`,shots[i].fileName,'Reading grid from image');
+    await tick();
+    try{
+      const res=await fetch('https://path.m2w.workers.dev', {method:'POST',headers: { 'Content-Type': 'application/json' },body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',max_tokens:1400,
+        messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:shots[i].imgB64}},{type:'text',text:PARSE_PROMPT}]}]
+      })});
+      const data=await res.json();
+      if(!res.ok) throw new Error(data.error?.message||'API error');
+      const raw=data.content.map(b=>b.text||'').join('').trim();
+      const parsed=JSON.parse(raw.replace(/```json|```/g,'').trim());
+      if(!parsed.grid||parsed.grid.length!==5) throw new Error('Invalid grid');
+      for(let r=0;r<5;r++) if(!parsed.grid[r]||parsed.grid[r].length!==5) throw new Error(`Row ${r+1} bad`);
 
-    # 2×2 compact grid of management buttons
-    st.markdown("<div id='action-buttons'>", unsafe_allow_html=True)
-    r1c1, r1c2 = st.columns(2)
-    r2c1, r2c2 = st.columns(2)
+      // ── KEY FIX: force red cell values to negative ──────────────
+      // Red tiles always impose ÷ penalties. If Claude misread a ÷ as +,
+      // we correct it here by taking -abs(value) for all red cells.
+      for(let r=0;r<5;r++) for(let c=0;c<5;c++){
+        const cell=parsed.grid[r][c];
+        if(cell.type==='red' && typeof cell.value==='number' && cell.value>0){
+          cell.value=-cell.value; // correct misread: ÷13312 → -13312
+        }
+      }
 
-    with r1c1:
-        if st.button("Clear Values", use_container_width=True):
-            st.session_state.cell_values = {}
-            st.session_state.solution = None
-            st.rerun()
+      shots[i].grid=parsed.grid;
+      shots[i].startPos=parsed.start||findType(parsed.grid,'gray');
+      shots[i].endPos=parsed.end||findType(parsed.grid,'special');
 
-    with r1c2:
-        if st.button("Clear Obstacles", use_container_width=True):
-            st.session_state.obstacles = set()
-            st.session_state.solution = None
-            st.rerun()
+      showLoad(`Solving Screenshot ${i+1}/${shots.length}…`,shots[i].fileName,'Finding best path S → Flag');
+      await tick();
+      shots[i].result=shots[i].startPos&&shots[i].endPos
+        ? runDFS(shots[i].grid,shots[i].startPos,shots[i].endPos)
+        : {score:0,path:[],redLog:[],error:'S or Flag not found'};
+    } catch(e){
+      console.error(e);
+      shots[i].result={score:0,path:[],redLog:[],error:e.message};
+    }
+  }
+  hideLoad();
+  renderResults();
+  show('card-results');
+  document.getElementById('card-results').scrollIntoView({behavior:'smooth',block:'start'});
+}
 
-    with r2c1:
-        if st.button("Clear All (keep S/E)", use_container_width=True):
-            st.session_state.obstacles = set()
-            st.session_state.cell_values = {}
-            st.session_state.solution = None
-            st.rerun()
+// ── DFS ─────────────────────────────────────────────────────────────
+// Red tile eligibility:
+//   Red tiles ALWAYS have a penalty = abs(cell.value) (forced negative above).
+//   A red tile can only be traversed if the running iconTotals for its icon
+//   is >= abs(penalty), meaning positive cells of same icon already in path
+//   fully cover the red tile's ÷ value.
+//   Score = sum of tier pts for non-red cells only.
+function runDFS(data,sPos,ePos){
+  const[sr,sc]=sPos,[er,ec]=ePos;
+  const t0=Date.now(),LIMIT=4800;
+  let bestScore=-Infinity,bestPath=[],bestRedLog=[];
+  const visited=Array.from({length:5},()=>Array(5).fill(false));
+  const iconTotals={}; // icon → running sum of display values
 
-    with r2c2:
-        if st.button("All Low", use_container_width=True):
-            for r in range(N):
-                for c in range(N):
-                    pos = (r, c)
-                    if pos not in st.session_state.obstacles:
-                        st.session_state.cell_values[pos] = int(low_val)
-            st.session_state.solution = None
-            st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+  function ub(cur){
+    let x=0;
+    for(let r=0;r<5;r++) for(let c=0;c<5;c++) if(!visited[r][c]) x+=tierScore(data[r][c].type);
+    return cur+x;
+  }
+  function addIcon(cell){
+    const icon=(cell.icon||'misc').toLowerCase(),val=typeof cell.value==='number'?cell.value:0,prev=iconTotals[icon]||0;
+    iconTotals[icon]=prev+val; return{icon,prev};
+  }
+  function undoIcon({icon,prev}){ iconTotals[icon]=prev; }
 
+  // canTraverse: for red cells, the value has already been forced negative.
+  // Require that running total for this icon + penalty stays >= 0.
+  function canTraverse(cell){
+    if(cell.type!=='red') return true;
+    const penalty=typeof cell.value==='number'?cell.value:0; // always negative or 0
+    if(penalty>=0) return true; // 0 means no penalty listed
+    const icon=(cell.icon||'misc').toLowerCase();
+    const currentPositives=iconTotals[icon]||0;
+    return currentPositives+penalty>=0; // coverage must cover the penalty
+  }
 
-st.divider()
+  const redLog=[];
+  function dfs(r,c,path,score){
+    if(Date.now()-t0>LIMIT) return;
+    if(r===er&&c===ec){
+      if(score>bestScore){bestScore=score;bestPath=[...path];bestRedLog=[...redLog];}
+      return;
+    }
+    if(ub(score)<=bestScore) return;
+    for(const[dr,dc]of[[-1,0],[1,0],[0,-1],[0,1]]){
+      const nr=r+dr,nc=c+dc;
+      if(nr<0||nr>=5||nc<0||nc>=5||visited[nr][nc]) continue;
+      if(Date.now()-t0>LIMIT) return;
+      const next=data[nr][nc];
+      if(!canTraverse(next)) continue; // red not covered → skip
+      if(next.type==='red'){
+        const icon=(next.icon||'misc').toLowerCase(),penalty=typeof next.value==='number'?next.value:0;
+        const available=iconTotals[icon]||0;
+        redLog.push({r:nr,c:nc,icon,penalty,available,ok:available+penalty>=0});
+      }
+      visited[nr][nc]=true; path.push([nr,nc]);
+      const u=addIcon(next);
+      dfs(nr,nc,path,score+tierScore(next.type));
+      undoIcon(u); path.pop(); visited[nr][nc]=false;
+      if(next.type==='red') redLog.pop();
+    }
+  }
+  visited[sr][sc]=true;
+  const u0=addIcon(data[sr][sc]);
+  dfs(sr,sc,[[sr,sc]],tierScore(data[sr][sc].type));
+  undoIcon(u0);
+  return{score:bestScore,path:bestPath,redLog:bestRedLog};
+}
 
-# Path index lookup
-path_index = {}
-if st.session_state.solution:
-    path, total = st.session_state.solution
-    for i, cell in enumerate(path, start=1):
-        path_index[cell] = i
+function findType(grid,type){
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++) if(grid[r][c].type===type) return[r,c];
+  return null;
+}
 
-# Click handler
-def click_cell(r: int, c: int):
-    st.session_state.solution = None
-    pos = (r, c)
-    tool = st.session_state.tool
+// ── RENDER RESULTS ─────────────────────────────────────────────────
+function renderResults(){
+  let winnerIdx=-1,winnerScore=-Infinity;
+  shots.forEach((s,i)=>{ if(s.result&&s.result.score>winnerScore){winnerScore=s.result.score;winnerIdx=i;} });
 
-    if tool == "Obstacle":
-        if pos not in (st.session_state.start, st.session_state.end):
-            if pos in st.session_state.obstacles:
-                st.session_state.obstacles.remove(pos)
-            else:
-                st.session_state.obstacles.add(pos)
-        st.rerun()
+  if(winnerIdx>=0&&winnerScore>0){
+    document.getElementById('bannerTitle').textContent=`Screenshot ${winnerIdx+1} is the Best!`;
+    document.getElementById('bannerSub').textContent=`${winnerScore.toLocaleString()} points · ${shots[winnerIdx].result.path.length} cells · ${shots[winnerIdx].fileName}`;
+  } else {
+    document.getElementById('bannerTitle').textContent='No valid paths found';
+    document.getElementById('bannerSub').textContent='Check that S and Flag cells are correctly identified.';
+  }
 
-    elif tool == "Start":
-        st.session_state.obstacles.discard(pos)
-        if pos == st.session_state.end:
-            st.session_state.end = None
-        st.session_state.start = pos
-        st.rerun()
+  // Score badges
+  const sr=document.getElementById('scoreRow');
+  sr.style.gridTemplateColumns=`repeat(${shots.length},1fr)`;
+  sr.innerHTML=shots.map((s,i)=>{
+    const r=s.result,isBest=i===winnerIdx&&r&&r.score>0;
+    return`<div class="score-badge${isBest?' best':''}">
+      <img class="badge-thumb" src="${s.imgDataUrl}" alt="">
+      <div class="badge-num">Screenshot ${i+1}</div>
+      ${r&&r.path.length>0
+        ?`<div class="badge-score">${r.score.toLocaleString()}<span style="font-size:.75rem;color:var(--text-dim)"> pts</span></div><div class="badge-cells">${r.path.length} cells</div>`
+        :`<div class="badge-score dimmed">${r&&r.error?'Error':'No path'}</div>`}
+    </div>`;
+  }).join('');
 
-    elif tool == "End":
-        st.session_state.obstacles.discard(pos)
-        if pos == st.session_state.start:
-            st.session_state.start = None
-        st.session_state.end = pos
-        st.rerun()
+  // Result cards
+  document.getElementById('resultsGrid').innerHTML=shots.map((s,i)=>{
+    const r=s.result,isBest=i===winnerIdx&&r&&r.score>0,hasResult=r&&r.path.length>0;
+    return`<div class="result-card${isBest?' best':''}">
+      <div class="result-header">
+        <img class="result-thumb" src="${s.imgDataUrl}" alt="">
+        <div class="result-meta">
+          <div class="result-title">Screenshot ${i+1} ${isBest?'<span class="best-badge">🏆 BEST</span>':''}</div>
+          <div class="result-score-big" style="color:${hasResult?'var(--gold-br)':'var(--text-dim)'}">
+            ${hasResult?r.score.toLocaleString():(r&&r.error?'Error':'—')}${hasResult?'<span style="font-size:.8rem;color:var(--text-dim)"> pts</span>':''}
+          </div>
+          <div class="result-detail">${hasResult?`${r.path.length} cells · ${s.fileName}`:(r&&r.error?r.error:s.fileName)}</div>
+        </div>
+      </div>
+      ${hasResult?`
+        <div class="mg5" id="grid-${i}">${buildMiniGrid(s.grid,r.path,s.startPos,s.endPos)}</div>
+        ${buildRedPanel(r.redLog, s.grid, i)}
+      `:`<div style="font-size:.8rem;color:var(--text-dim);text-align:center;padding:1rem">No valid path — check S and Flag cells are detected.</div>`}
+    </div>`;
+  }).join('');
 
-    elif tool in ("Low", "Med", "High", "Mythical"):
-        v = {"Low": low_val, "Med": med_val, "High": high_val, "Mythical": myth_val}[tool]
-        st.session_state.cell_values[pos] = int(v)
-        st.rerun()
+  requestAnimationFrame(()=>shots.forEach((s,i)=>{ if(s.result&&s.result.path.length>0) drawSVG(`grid-${i}`,s.result.path); }));
+}
 
+function buildRedPanel(redLog, grid, shotIdx){
+  if(!redLog||redLog.length===0) return'';
+  // All should be ok=true since DFS only selects covered reds
+  const anyFail=redLog.some(x=>!x.ok);
+  return`<div class="red-panel ${anyFail?'warn':'clean'}">
+    <div class="rp-title" style="color:${anyFail?'var(--c-rd)':'var(--c-gr)'}">
+      🔴 Red Tiles Crossed ${anyFail?'— ⚠ Coverage Issue Detected':'— All Covered ✓'}
+    </div>
+    ${redLog.map(x=>{
+      const penAbs=Math.abs(x.penalty),covered=x.available>=penAbs;
+      return`<div class="rp-row">
+        <span>${covered?'<b class="rp-ok">✓</b>':'<b class="rp-fail">✗</b>'}</span>
+        <span>R${x.r+1}C${x.c+1}</span>
+        <span class="dim">·</span>
+        <span><i>${x.icon}</i> ÷${fmtNum(penAbs)}%</span>
+        <span class="dim">needs</span>
+        <span><b>+${fmtNum(penAbs)}%</b></span>
+        <span class="dim">found</span>
+        <span style="color:${covered?'var(--c-gr)':'var(--c-rd)'}"><b>${x.available>=0?'+':''}${fmtNum(x.available)}%</b></span>
+        <span>${covered?'<span class="rp-ok">✓ covered</span>':'<span class="rp-fail">✗ insufficient — edit cell to correct</span>'}</span>
+        ${!covered?`<button class="btn btn-ghost btn-sm" onclick="openEdit(${shotIdx},${x.r},${x.c})" style="margin-left:.4rem">Edit</button>`:''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
 
-    elif tool == "Erase":
-        st.session_state.cell_values.pop(pos, None)
-        st.session_state.obstacles.discard(pos)
-        st.rerun()
+function buildMiniGrid(data,path,startPos,endPos){
+  const pathSet=new Set(path.map(([r,c])=>`${r},${c}`));
+  let html='';
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++){
+    const cell=data[r][c],onPath=pathSet.has(`${r},${c}`);
+    const score=tierScore(cell.type);
+    const isS=startPos&&startPos[0]===r&&startPos[1]===c,isF=endPos&&endPos[0]===r&&endPos[1]===c;
+    const top=isS?'S':isF?'⚑':RNAMES[cell.type]||cell.type;
+    const dv=typeof cell.value==='number'&&cell.value!==0?fmtPct(cell.value):'';
+    html+=`<div class="mcell cell-${cell.type}${onPath?' lit':''}">
+      <div class="mc-top">${top}</div>
+      <div class="mc-pts">${score>0?score:cell.type==='red'?'÷':'—'}</div>
+      <div class="mc-val">${dv}</div>
+    </div>`;
+  }
+  return html;
+}
 
+// ── SVG LINE ───────────────────────────────────────────────────────
+function drawSVG(gridId,path){
+  const container=document.getElementById(gridId);
+  if(!container||!path||path.length<2) return;
+  container.querySelectorAll('.path-svg').forEach(s=>s.remove());
+  const cells=container.querySelectorAll('.mcell');
+  if(!cells.length) return;
+  const W=container.offsetWidth,H=container.offsetHeight;
+  const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.className='path-svg';
+  svg.setAttribute('width',W); svg.setAttribute('height',H);
+  svg.style.cssText='position:absolute;top:0;left:0;pointer-events:none;z-index:5;overflow:visible';
 
-# Grid
-for r in range(N):
-    cols = st.columns(N, gap="small")
-    for c in range(N):
-        pos = (r, c)
-        is_start = (pos == st.session_state.start)
-        is_end = (pos == st.session_state.end)
-        is_ob = (pos in st.session_state.obstacles)
-        val = st.session_state.cell_values.get(pos)
-        on_path = path_index.get(pos)
+  const centers=path.map(([r,c])=>{
+    const cell=cells[r*5+c];
+    return{x:cell.offsetLeft+cell.offsetWidth/2, y:cell.offsetTop+cell.offsetHeight/2};
+  });
 
-        # Color-coded label
-        if on_path:
-            main_text = f"{on_path}"
-            color_token = ""
-        elif is_ob:
-            main_text, color_token = "X", "🟥"
-        elif is_start:
-            main_text, color_token = "S", "🟦"
-        elif is_end:
-            main_text, color_token = "E", "🟪"
-        else:
-            if val == low_val:
-                color_token = "🟩"
-            elif val == med_val:
-                color_token = "🟦"
-            elif val == high_val:
-                color_token = "🟨"
-            elif val == myth_val:
-                color_token = "🟪"  
-            else:
-                color_token = "⬜"
-            main_text = str(val if val is not None else 1)
+  const mkLine=(pts,stroke,w,op)=>{
+    const pl=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+    pl.setAttribute('points',pts.map(p=>`${p.x},${p.y}`).join(' '));
+    pl.setAttribute('stroke',stroke); pl.setAttribute('stroke-width',w); pl.setAttribute('stroke-opacity',op);
+    pl.setAttribute('fill','none'); pl.setAttribute('stroke-linecap','round'); pl.setAttribute('stroke-linejoin','round');
+    return pl;
+  };
+  svg.appendChild(mkLine(centers,'#f0c840',8,0.15));
+  svg.appendChild(mkLine(centers,'#f0c840',2.5,0.9));
 
-        label = f"{color_token} {main_text}".strip()
-        help_txt = []
-        if is_start: help_txt.append("Start")
-        if is_end: help_txt.append("End")
-        if is_ob: help_txt.append("Obstacle")
-        if val is not None: help_txt.append(f"Value={val}")
-        else: help_txt.append("Value=1")
-        if on_path: help_txt.append(f"Path idx={on_path}")
+  centers.forEach(({x,y},i)=>{
+    const isS=i===0,isE=i===path.length-1;
+    const fill=isS?'#3dba4e':isE?'#9966ff':'#f0c840',cr=isS||isE?7:4.5;
+    const circ=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circ.setAttribute('cx',x); circ.setAttribute('cy',y); circ.setAttribute('r',cr);
+    circ.setAttribute('fill',fill); circ.setAttribute('fill-opacity','0.95'); circ.setAttribute('stroke','#000'); circ.setAttribute('stroke-width','1');
+    svg.appendChild(circ);
+    const txt=document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x',x); txt.setAttribute('y',y+3); txt.setAttribute('text-anchor','middle');
+    txt.setAttribute('font-size','6'); txt.setAttribute('font-family','Cinzel,serif'); txt.setAttribute('font-weight','700'); txt.setAttribute('fill','#fff');
+    txt.textContent=isS?'S':isE?'F':(i+1);
+    svg.appendChild(txt);
+  });
+  container.appendChild(svg);
+}
 
-        if cols[c].button(label, key=f"cell-{r}-{c}", help=", ".join(help_txt), use_container_width=True):
-            click_cell(r, c)
-# --- SVG arrows for the solved path (place this right after the grid loop) ---
-if st.session_state.solution:
-    path, total = st.session_state.solution
-    if path:
-        # SVG canvas settings
-        cell_px = 60       # pixel size per cell (only affects the SVG, not buttons)
-        gap_px = 6         # gap to visually match st.columns gap a bit
-        W = N * (cell_px + gap_px) - gap_px
-        H = W
+// ── EDIT MODAL ─────────────────────────────────────────────────────
+function openEdit(shotIdx,r,c){
+  editTarget={shotIdx,r,c};
+  const cell=shots[shotIdx].grid[r][c];
+  document.getElementById('editPos').textContent=`Shot ${shotIdx+1} · R${r+1}C${c+1}`;
+  document.getElementById('editType').value=cell.type;
+  document.getElementById('editIcon').value=cell.icon||'';
+  document.getElementById('editVal').value=cell.value!==null?cell.value:'';
+  document.getElementById('editMod').classList.add('show');
+}
+function closeMod(){ document.getElementById('editMod').classList.remove('show'); editTarget=null; }
+function saveEdit(){
+  if(!editTarget) return;
+  const{shotIdx,r,c}=editTarget,nt=document.getElementById('editType').value;
+  const ni=document.getElementById('editIcon').value.trim().toLowerCase()||'misc';
+  const vs=document.getElementById('editVal').value;
+  let val=vs!==''?parseFloat(vs):null;
+  // Force red values to be negative
+  if(nt==='red'&&val!==null&&val>0) val=-val;
+  shots[shotIdx].grid[r][c]={type:nt,icon:ni,value:val};
+  if(nt==='gray') shots[shotIdx].startPos=[r,c];
+  if(nt==='special') shots[shotIdx].endPos=[r,c];
+  if(shots[shotIdx].startPos&&shots[shotIdx].endPos)
+    shots[shotIdx].result=runDFS(shots[shotIdx].grid,shots[shotIdx].startPos,shots[shotIdx].endPos);
+  closeMod();
+  renderResults();
+}
 
-        def center_of(rc):
-            r, c = rc
-            x = c * (cell_px + gap_px) + cell_px / 2
-            y = r * (cell_px + gap_px) + cell_px / 2
-            return x, y
+// ── UTILS ──────────────────────────────────────────────────────────
+function fmtPct(v){ if(!v)return''; const a=Math.abs(v),s=v<0?'÷':'+'; if(a>=1000)return`${s}${(a/1000).toFixed(a%1000===0?0:1)}k%`; return`${s}${a}%`; }
+function fmtNum(v){ if(v>=1000)return`${(v/1000).toFixed(v%1000===0?0:1)}k`; return`${v}`; }
+function show(id){ document.getElementById(id).classList.remove('hidden'); }
+function hide(id){ document.getElementById(id).classList.add('hidden'); }
+function showLoad(txt,sub,prog){ document.getElementById('loadTxt').textContent=txt; document.getElementById('loadSub').textContent=sub||''; document.getElementById('loadProg').textContent=prog||''; document.getElementById('loader').classList.add('show'); }
+function hideLoad(){ document.getElementById('loader').classList.remove('show'); }
+function setMsg(id,txt,type){ const el=document.getElementById(id); el.innerHTML=txt?`<div class="msg msg-${type}">${txt}</div>`:''; }
+function tick(){ return new Promise(r=>setTimeout(r,40)); }
 
-        # Build SVG paths between consecutive cells
-        lines = []
-        for i in range(len(path) - 1):
-            x1, y1 = center_of(path[i])
-            x2, y2 = center_of(path[i + 1])
-            lines.append(f'<line x1="{x1}" y1="{y1}" x2="{x2}" y2="{y2}" '
-                         f'stroke="black" stroke-width="3" marker-end="url(#arrow)" />')
-
-        cell_rects = []
-        for r in range(N):
-            for c in range(N):
-                pos = (r, c)
-                if pos in st.session_state.obstacles:
-                    color = "red"
-                elif pos == st.session_state.start:
-                    color = "deepskyblue"
-                elif pos == st.session_state.end:
-                    color = "purple"
-                elif st.session_state.cell_values.get(pos) == low_val:
-                    color = "limegreen"
-                elif st.session_state.cell_values.get(pos) == med_val:
-                    color = "dodgerblue"
-                elif st.session_state.cell_values.get(pos) == high_val:
-                    color = "gold"
-                elif st.session_state.cell_values.get(pos) == myth_val:
-                    color = "pink"
-                else:
-                    color = "white"
-
-
-                cell_rects.append(
-                    f'<rect x="{c * (cell_px + gap_px)}" y="{r * (cell_px + gap_px)}" '
-                    f'width="{cell_px}" height="{cell_px}" fill="{color}" stroke="gray" />'
-                )
-
-        svg = f"""
-        <svg width="{W}" height="{H}" viewBox="0 0 {W} {H}" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <marker id="arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" fill="black" />
-            </marker>
-          </defs>
-          <!-- cells -->
-          {''.join(cell_rects)}
-          <!-- path with arrows -->
-          {''.join(lines)}
-        </svg>
-        """
-        st.markdown(svg, unsafe_allow_html=True)
-
-st.divider()
-if st.session_state.solution is None:
-    st.info("Click cells to configure, then press **Solve**.")
-else:
-    path, total = st.session_state.solution
-    if not path:
-        st.error("No path found.")
-    else:
-        st.success(f"Max value: {total} | Path length: {len(path)}")
-
-with st.expander("Show configuration"):
-    st.write(f"Start: {st.session_state.start}")
-    st.write(f"End: {st.session_state.end}")
-    st.write(f"Obstacles: {sorted(list(st.session_state.obstacles))}")
-    st.json({str(k): v for k, v in st.session_state.cell_values.items()})
-
-
-
-
-
-
-
-
-
-
+// ── INIT ───────────────────────────────────────────────────────────
+buildSlots(); onAscChange(); refreshPts();
+</script>
+</body>
+</html>
