@@ -328,18 +328,22 @@ Find:
 2. The END tile — it has a dark purple/violet background with a flag or pennant icon.
 
 For each of the 25 tiles identify:
-- "type": the BACKGROUND color of the tile only (ignore icon/text colors):
-  "green"   = dark green background (MOST COMMON — majority of tiles)
-  "blue"    = dark navy/cobalt blue background
-  "gold"    = dark amber/golden-brown background (rare, 0-2 tiles)
-  "pink"    = dark magenta/hot-pink background (very rare)
-  "white"   = light gray or off-white background
-  "red"     = dark crimson/maroon background (cursed tiles, rare — 0 to 3)
-  "gray"    = the START tile with large letter S
-  "special" = the END tile with flag icon and purple background
+- "type": BACKGROUND color only — ignore ALL icon colors, glow effects, and text colors. Look at the solid fill behind everything.
+  "green"   = dark green background — BY FAR MOST COMMON, expect 15-22 green tiles per grid.
+  "blue"    = dark navy/cobalt BACKGROUND only (0-3 tiles). Whole tile bg must be dark blue.
+  "gold"    = dark amber/golden-brown BACKGROUND only (0-2 tiles). Whole tile bg must be amber.
+  "pink"    = dark magenta/hot-pink BACKGROUND only (0-1 tiles).
+  "white"   = light gray or off-white BACKGROUND.
+  "red"     = dark crimson/maroon BACKGROUND — cursed tiles (0-3 tiles).
+  "gray"    = START tile — blue-gray or silver background with large letter S.
+  "special" = END tile — purple/violet background with flag icon.
 
-  RULES: A green tile with a gold icon is STILL "green". A green tile with ÷ value is STILL "green".
-  Red tiles are RARE. If you count more than 4 red tiles you are wrong.
+  !!! CRITICAL: Icons are almost always a DIFFERENT COLOR than the background. Examples:
+  BLUE lightning bolt icon on GREEN background = "green" (NOT blue)
+  GOLD coin icon on GREEN background = "green" (NOT gold)
+  RED fire icon on GREEN background = "green" (NOT red)
+  Only use "blue" if the ENTIRE BACKGROUND is dark navy. Only "red" if ENTIRE BACKGROUND is dark crimson.
+  When unsure — pick "green".
 
 - "value": integer from the tile. "+" prefix = positive. "÷" prefix = NEGATIVE (÷998 = -998, ÷6,656 = -6656). Parentheses like (+6,656%) = NEGATIVE -6656. No number = 0. Strip commas and %.
 
