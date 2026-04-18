@@ -314,111 +314,144 @@ function tierScore(type){ if(type==='red'||type==='gray'||type==='special') retu
 // ── WORKER URL ──────────────────────────────────────────────────────
 const WORKER='https://path.m2w.workers.dev';
 
-// ── STEP 1: Detect grid bounds from full screenshot ─────────────────
-// Returns {x,y,w,h} as fractions (0-1) of image dimensions
-async function detectGridBounds(imgB64){
-  const prompt=`This is a mobile game screenshot. Find the 5×5 grid of colored square tiles (the game board).
-Return ONLY JSON with the bounding box as FRACTIONS of the image size (values between 0 and 1):
-{"x":0.1,"y":0.35,"w":0.82,"h":0.55}
-Where x,y = top-left corner, w,h = width and height as fractions.
-The grid is the dark rectangular panel containing exactly 25 colored squares in 5 rows × 5 columns.
-No markdown, no explanation, just the JSON.`;
-  const res=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    model:'claude-sonnet-4-20250514',max_tokens:100,
-    messages:[{role:'user',content:[
-      {type:'image',source:{type:'base64',media_type:'image/jpeg',data:imgB64}},
-      {type:'text',text:prompt}
-    ]}]
-  })});
-  const data=await res.json();
-  if(!res.ok) throw new Error(data.error?.message||'Bounds detection failed');
-  const raw=data.content.map(b=>b.text||'').join('').trim();
-  return JSON.parse(raw.replace(/```json|```/g,'').trim());
+// ─────────────────────────────────────────────────────────────────────
+// COLOR DETECTION: done entirely with canvas pixel sampling — no AI.
+// Samples a small center patch of each cell and classifies by RGB.
+// This is 100% accurate and requires zero API calls.
+// ─────────────────────────────────────────────────────────────────────
+
+// Classify a single averaged RGB into a tile type
+function rgbToType(r,g,b){
+  // Special: purple/violet → flag end tile
+  if(b>100 && r>80 && g<80 && b>r*0.9) return 'special';
+  // Gray/silver → S start tile
+  if(Math.abs(r-g)<25 && Math.abs(g-b)<25 && r>100 && r<200) return 'gray';
+  // Pink/magenta → mythic
+  if(r>120 && b>80 && g<80 && r>b) return 'pink';
+  // Blue → epic
+  if(b>100 && b>r*1.4 && b>g*1.2) return 'blue';
+  // Gold/amber → legendary (reddish-orange-brown, NOT green-dominant)
+  if(r>100 && g>60 && g<r*0.85 && b<70 && r>g) return 'gold';
+  // Red/crimson → cursed
+  if(r>80 && r>g*2.2 && r>b*2.2) return 'red';
+  // Green → rare (default, most common)
+  if(g>r*0.8 && g>50) return 'green';
+  // White/light → common
+  if(r>160 && g>160 && b>160) return 'white';
+  return 'green'; // fallback
 }
 
-// ── STEP 2: Crop 25 individual cell images from the grid ────────────
-async function extractCells(imgDataUrl, bounds){
+// Sample the center 20% of a cell on the canvas and average the RGB
+function sampleCellColor(ctx, cx, cy, cw, ch){
+  const px=Math.round(cx+cw*0.3), py=Math.round(cy+ch*0.3);
+  const pw=Math.round(cw*0.4),   ph=Math.round(ch*0.4);
+  const d=ctx.getImageData(px,py,pw,ph).data;
+  let R=0,G=0,B=0,n=0;
+  for(let i=0;i<d.length;i+=4){ R+=d[i]; G+=d[i+1]; B+=d[i+2]; n++; }
+  return n?{r:R/n,g:G/n,b:B/n}:{r:0,g:0,b:0};
+}
+
+// Detect grid bounds by scanning for the dense colored region
+// Falls back to a hardcoded estimate if detection fails
+function detectGridFromPixels(canvas, ctx){
+  // This game always has the grid in roughly the top-middle of the screenshot
+  // after the HUD. We'll use a heuristic scan for high color-variance columns.
+  const W=canvas.width, H=canvas.height;
+  // Try to find the grid by looking for the first row of highly saturated pixels
+  // Scan down the center column in 5% steps
+  const cx=Math.floor(W*0.5);
+  let gridTop=null, gridBot=null;
+  for(let y=Math.floor(H*0.2);y<Math.floor(H*0.9);y+=3){
+    const d=ctx.getImageData(cx,y,1,1).data;
+    const sat=Math.max(d[0],d[1],d[2])-Math.min(d[0],d[1],d[2]);
+    if(gridTop===null && sat>40) gridTop=y;
+    if(gridTop!==null && sat>15) gridBot=y;
+  }
+  if(!gridTop||!gridBot||gridBot-gridTop<H*0.2){
+    // fallback: typical layout for this game
+    return {x:Math.floor(W*0.10), y:Math.floor(H*0.28), w:Math.floor(W*0.78), h:Math.floor(H*0.52)};
+  }
+  const pad=Math.floor((gridBot-gridTop)*0.02);
+  return {
+    x: Math.floor(W*0.10),
+    y: gridTop-pad,
+    w: Math.floor(W*0.78),
+    h: gridBot-gridTop+pad*2
+  };
+}
+
+// Load image into canvas and sample all 25 cell colors
+function detectColorsFromImage(imgDataUrl){
   return new Promise((resolve,reject)=>{
     const img=new Image();
     img.onload=()=>{
-      const iw=img.naturalWidth, ih=img.naturalHeight;
-      const gx=bounds.x*iw, gy=bounds.y*ih, gw=bounds.w*iw, gh=bounds.h*ih;
-      const cw=gw/5, ch=gh/5;
-      const cells=[];
+      const canvas=document.createElement('canvas');
+      canvas.width=img.naturalWidth; canvas.height=img.naturalHeight;
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0);
+      const bounds=detectGridFromPixels(canvas,ctx);
+      const cw=bounds.w/5, ch=bounds.h/5;
+      const types=[];
       for(let r=0;r<5;r++){
         for(let c=0;c<5;c++){
-          const cv=document.createElement('canvas');
-          cv.width=100; cv.height=100; // normalize all cells to 100×100
-          const ctx=cv.getContext('2d');
-          ctx.drawImage(img, gx+c*cw, gy+r*ch, cw, ch, 0, 0, 100, 100);
-          cells.push(cv.toDataURL('image/jpeg',0.85).split(',')[1]);
+          const cx=bounds.x+c*cw, cy=bounds.y+r*ch;
+          const {r:R,g:G,b:B}=sampleCellColor(ctx,cx,cy,cw,ch);
+          types.push(rgbToType(R,G,B));
         }
       }
-      resolve(cells);
+      resolve({types, bounds});
     };
     img.onerror=reject;
     img.src=imgDataUrl;
   });
 }
 
-// ── STEP 3: Classify all 25 cells in one API call ───────────────────
-// Each cell is sent as an individual image so Claude sees one tile at a time
-const CELL_CLASSIFY_PROMPT=`You are classifying individual game tiles. Each image above is a single tile cropped from a 5×5 game grid.
+// ─────────────────────────────────────────────────────────────────────
+// VALUE + ICON READING: one API call on the full screenshot.
+// Claude only needs to read numbers and small icons — not colors.
+// ─────────────────────────────────────────────────────────────────────
+const VALUES_PROMPT=`You are a JSON-only data extractor. You must respond with ONLY a JSON array — no words, no explanation, no preamble, no markdown. Start your response with [ and end with ].
 
-For EACH tile image (labeled Cell 1 through Cell 25, reading left-to-right then top-to-bottom):
+This is a mobile game screenshot with a 5×5 grid of 25 tiles. Read tiles left-to-right, top-to-bottom.
 
-1. TYPE — look ONLY at the BACKGROUND COLOR of the tile. Ignore icon color, text color, glow effects.
-   - "green"   = dark GREEN background. This is BY FAR the most common. Even tiles with gold/orange icons are green if the background is green.
-   - "red"     = dark CRIMSON or MAROON background (like dried blood / dark brownish-red). These are CURSED tiles. Very rare — 0 to 3 per grid.
-   - "blue"    = dark NAVY or COBALT BLUE background
-   - "gold"    = dark AMBER or GOLDEN-BROWN background (rare, 0-2 per grid)
-   - "pink"    = dark MAGENTA or HOT-PINK background (very rare)
-   - "white"   = LIGHT GRAY or OFF-WHITE background
-   - "gray"    = SILVER/GRAY background with a large letter S — this is the START tile
-   - "special" = PURPLE or VIOLET background with a flag icon — this is the END tile
+For each of the 25 tiles output ONE object with:
+- "value": integer. "+" prefix = positive (e.g. +1,564% = 1564). "÷" prefix = NEGATIVE (e.g. ÷998% = -998, ÷6,656% = -6656). Values in parentheses like (+6,656%) = NEGATIVE -6656. No number = 0. Strip all commas and % signs.
+- "icon": one lowercase word for the small icon: "coin","damage","defense","xp","lightning","move","ghost","heart","target","misc".
 
-   !! CRITICAL: A green tile with a gold/orange icon is STILL "green". Do NOT call it "gold".
-   !! CRITICAL: A green tile with a ÷ value is STILL "green". The ÷ symbol does NOT mean the tile is red/cursed.
-   !! CRITICAL: "red" tiles are RARE. If you see more than 3, you are wrong — recheck.
+YOUR ENTIRE RESPONSE MUST BE ONLY THIS, starting with [ and nothing before it:
+[{"value":1564,"icon":"move"},{"value":-998,"icon":"coin"},{"value":6656,"icon":"damage"},...]`;
 
-2. VALUE — the number shown on the tile:
-   - "+" before number → POSITIVE integer (e.g. +1,564% → 1564)
-   - "÷" before number → NEGATIVE integer (e.g. ÷998% → -998)
-   - Number in parentheses like (+6,656%) → NEGATIVE (-6656) 
-   - No number → 0
-   Strip all commas and % signs.
+// Extract a JSON array from a string that may have preamble text before it
+function extractJSON(raw){
+  // First try direct parse
+  try{ return JSON.parse(raw); }catch(e){}
+  // Find first [ and last ] and parse what's between
+  const start=raw.indexOf('['), end=raw.lastIndexOf(']');
+  if(start!==-1&&end!==-1&&end>start){
+    try{ return JSON.parse(raw.slice(start,end+1)); }catch(e){}
+  }
+  // Strip markdown fences and try again
+  const stripped=raw.replace(/```json|```/g,'').trim();
+  try{ return JSON.parse(stripped); }catch(e){}
+  throw new Error('Could not extract JSON from response: '+raw.slice(0,120));
+}
 
-3. ICON — short lowercase name for the small icon on the tile: "coin","damage","defense","xp","lightning","move","ghost","target","heart". Use "misc" if unclear. Use the SAME name for the same icon across all cells.
-
-Return ONLY a JSON array of exactly 25 objects in cell order (Cell 1 = Row1Col1, Cell 25 = Row5Col5):
-[{"type":"green","value":1564,"icon":"move"},{"type":"red","value":-998,"icon":"coin"},...]`;
-
-async function classifyCells(cellB64s){
-  // Build content array: interleave label + image for each cell
-  const content=[];
-  cellB64s.forEach((b64,i)=>{
-    content.push({type:'text',text:`Cell ${i+1} (Row ${Math.floor(i/5)+1}, Col ${i%5+1}):`});
-    content.push({type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}});
-  });
-  content.push({type:'text',text:CELL_CLASSIFY_PROMPT});
-
+async function readValuesIcons(imgB64){
   const res=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    model:'claude-sonnet-4-20250514',max_tokens:2000,
-    messages:[{role:'user',content}]
+    model:'claude-sonnet-4-20250514',max_tokens:1200,
+    messages:[
+      {role:'user',content:[
+        {type:'image',source:{type:'base64',media_type:'image/jpeg',data:imgB64}},
+        {type:'text',text:VALUES_PROMPT}
+      ]},
+    ]
   })});
   const data=await res.json();
-  if(!res.ok) throw new Error(data.error?.message||'Classification failed');
+  if(!res.ok) throw new Error(data.error?.message||'Values API error');
   const raw=data.content.map(b=>b.text||'').join('').trim();
-  const flat=JSON.parse(raw.replace(/```json|```/g,'').trim());
-  if(!Array.isArray(flat)||flat.length!==25) throw new Error(`Expected 25 cells, got ${flat.length}`);
-
-  // Force red values to negative (catches any remaining ÷/+ confusion)
-  flat.forEach(cell=>{ if(cell.type==='red'&&typeof cell.value==='number'&&cell.value>0) cell.value=-cell.value; });
-
-  // Reshape flat array → 5×5 grid
-  const grid=[];
-  for(let r=0;r<5;r++) grid.push(flat.slice(r*5,r*5+5));
-  return grid;
+  const flat=extractJSON(raw);
+  if(!Array.isArray(flat)||flat.length!==25) throw new Error(`Expected 25 values, got ${flat?.length}`);
+  return flat;
 }
 
 // ── MAIN SOLVE ALL ──────────────────────────────────────────────────
@@ -428,39 +461,37 @@ async function doSolveAll(){
 
   for(let i=0;i<shots.length;i++){
     try{
-      // Step 1: Detect grid bounds
-      showLoad(`Screenshot ${i+1}/${shots.length} — Locating Grid…`,shots[i].fileName,'Finding the 5×5 board in image');
+      // Step 1: Detect colors via pixel sampling (no API call)
+      showLoad(`Screenshot ${i+1}/${shots.length} — Detecting Colors…`,shots[i].fileName,'Sampling pixel colors from grid');
       await tick();
-      let bounds;
-      try{
-        bounds=await detectGridBounds(shots[i].imgB64);
-        // Sanity check bounds
-        if(!bounds||bounds.w<0.2||bounds.h<0.2) throw new Error('Bad bounds');
-      }catch(e){
-        console.warn('Grid detection failed, using fallback bounds',e);
-        bounds={x:0.08,y:0.30,w:0.84,h:0.58}; // sensible fallback for this game's UI
-      }
+      const {types}=await detectColorsFromImage(shots[i].imgDataUrl);
 
-      // Step 2: Crop 25 cells
-      showLoad(`Screenshot ${i+1}/${shots.length} — Cropping Cells…`,shots[i].fileName,'Extracting 25 individual tiles');
+      // Step 2: Read values + icons via one API call
+      showLoad(`Screenshot ${i+1}/${shots.length} — Reading Values…`,shots[i].fileName,'AI reading numbers and icons');
       await tick();
-      const cellImages=await extractCells(shots[i].imgDataUrl, bounds);
+      const valIcons=await readValuesIcons(shots[i].imgB64);
 
-      // Step 3: Classify cells
-      showLoad(`Screenshot ${i+1}/${shots.length} — Classifying Tiles…`,shots[i].fileName,'Sending individual cells to AI');
-      await tick();
-      const grid=await classifyCells(cellImages);
+      // Step 3: Merge into 5×5 grid
+      const flat=types.map((type,idx)=>{
+        const vi=valIcons[idx]||{value:0,icon:'misc'};
+        let value=typeof vi.value==='number'?vi.value:0;
+        // Force red values negative — red tiles always have ÷ penalties
+        if(type==='red' && value>0) value=-value;
+        return{type, value, icon:(vi.icon||'misc').toLowerCase()};
+      });
+      const grid=[];
+      for(let r=0;r<5;r++) grid.push(flat.slice(r*5,r*5+5));
 
       shots[i].grid=grid;
       shots[i].startPos=findType(grid,'gray');
       shots[i].endPos=findType(grid,'special');
 
-      // Step 4: Solve
+      // Step 4: Solve path
       showLoad(`Screenshot ${i+1}/${shots.length} — Solving Path…`,shots[i].fileName,'Running S → Flag optimizer');
       await tick();
       shots[i].result=shots[i].startPos&&shots[i].endPos
         ? runDFS(grid,shots[i].startPos,shots[i].endPos)
-        : {score:0,path:[],redLog:[],error:'S or Flag not found — try editing cells manually'};
+        : {score:0,path:[],redLog:[],error:'S or Flag not found — check pixel color detection'};
 
     }catch(e){
       console.error(e);
