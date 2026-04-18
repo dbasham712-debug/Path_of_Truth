@@ -338,12 +338,21 @@ For each of the 25 tiles identify:
   "gray"    = START tile — blue-gray or silver background with large letter S.
   "special" = END tile — purple/violet background with flag icon.
 
-  !!! CRITICAL: Icons are almost always a DIFFERENT COLOR than the background. Examples:
-  BLUE lightning bolt icon on GREEN background = "green" (NOT blue)
-  GOLD coin icon on GREEN background = "green" (NOT gold)
-  RED fire icon on GREEN background = "green" (NOT red)
-  Only use "blue" if the ENTIRE BACKGROUND is dark navy. Only "red" if ENTIRE BACKGROUND is dark crimson.
-  When unsure — pick "green".
+  !!! CRITICAL — HOW TO TELL BLUE FROM GREEN !!!
+  A TRUE BLUE (Epic) tile: the background in ALL FOUR CORNERS of the tile is dark navy/cobalt blue.
+  A GREEN tile with a blue icon: the background in all four corners is dark green — only the small icon in the middle is blue.
+  Look at the CORNERS of the tile, not the center. The corners reveal the true background color.
+
+  Common mistakes to avoid:
+  - Green tile with BLUE lightning bolt icon → "green" (corners are green, only icon is blue)
+  - Green tile with GOLD coin icon → "green" (corners are green, only icon is gold)
+  - Green tile with RED fire icon → "green" (corners are green, only icon is red)
+  - Green tile with ÷ value → "green" (the ÷ symbol does NOT mean red/cursed)
+
+  Only use "blue" if ALL FOUR CORNERS of the tile look dark navy blue.
+  Only use "red" if ALL FOUR CORNERS of the tile look dark crimson/maroon.
+  Only use "gold" if ALL FOUR CORNERS of the tile look dark amber/brown-gold.
+  When in any doubt — use "green".
 
 - "value": integer from the tile. "+" prefix = positive. "÷" prefix = NEGATIVE (÷998 = -998, ÷6,656 = -6656). Parentheses like (+6,656%) = NEGATIVE -6656. No number = 0. Strip commas and %.
 
@@ -362,39 +371,8 @@ function extractJSON(raw){
   throw new Error('Could not parse JSON. First 200 chars: '+raw.slice(0,200));
 }
 
-// Pixel-check corner pixels of a cell to verify if it is truly blue-backgrounded.
-// Blue (Epic) tiles have dark navy corners; green tiles have green corners.
-async function isCellActuallyBlue(imgDataUrl, row, col){
-  return new Promise(resolve=>{
-    const img=new Image();
-    img.onload=()=>{
-      const W=img.naturalWidth, H=img.naturalHeight;
-      const cv=document.createElement('canvas');
-      cv.width=W; cv.height=H;
-      const ctx=cv.getContext('2d');
-      ctx.drawImage(img,0,0);
-      const gx=Math.floor(W*0.10), gy=Math.floor(H*0.28);
-      const gw=Math.floor(W*0.78), gh=Math.floor(H*0.52);
-      const cw=gw/5, ch=gh/5;
-      const cx=gx+col*cw, cy=gy+row*ch;
-      const offsets=[[cw*0.12,ch*0.12],[cw*0.88,ch*0.12],[cw*0.12,ch*0.88],[cw*0.88,ch*0.88]];
-      let tR=0,tG=0,tB=0;
-      for(const[ox,oy] of offsets){
-        const px=Math.round(cx+ox), py=Math.round(cy+oy);
-        const d=ctx.getImageData(px,py,3,3).data;
-        let r=0,g=0,b=0,n=0;
-        for(let i=0;i<d.length;i+=4){r+=d[i];g+=d[i+1];b+=d[i+2];n++;}
-        tR+=r/n; tG+=g/n; tB+=b/n;
-      }
-      tR/=4; tG/=4; tB/=4;
-      resolve(tB>tG*1.3 && tB>tR*1.1 && tG<80);
-    };
-    img.onerror=()=>resolve(false);
-    img.src=imgDataUrl;
-  });
-}
 
-async function parseGrid(imgB64, imgDataUrl){
+async function parseGrid(imgB64){
   const res=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
     model:'claude-sonnet-4-20250514',max_tokens:2000,
     messages:[{role:'user',content:[
@@ -413,15 +391,6 @@ async function parseGrid(imgB64, imgDataUrl){
     const cell=parsed.grid[r][c];
     if(cell.type==='red'&&typeof cell.value==='number'&&cell.value>0) cell.value=-cell.value;
   }
-  // Pixel-verify every cell Claude marked as blue — downgrade to green if corners aren't navy
-  if(imgDataUrl){
-    for(let r=0;r<5;r++) for(let c=0;c<5;c++){
-      if(parsed.grid[r][c].type==='blue'){
-        const confirmed=await isCellActuallyBlue(imgDataUrl,r,c);
-        if(!confirmed){ console.log(`Corrected R${r+1}C${c+1}: blue→green`); parsed.grid[r][c].type='green'; }
-      }
-    }
-  }
   return parsed;
 }
 
@@ -435,7 +404,7 @@ async function doSolveAll(){
       // Step 1: Parse grid (type + value + icon + start + end) in one call
       showLoad(`Screenshot ${i+1}/${shots.length} — Reading Grid…`,shots[i].fileName,'AI parsing tiles, values, and icons');
       await tick();
-      const parsed=await parseGrid(shots[i].imgB64, shots[i].imgDataUrl);
+      const parsed=await parseGrid(shots[i].imgB64);
 
       shots[i].grid=parsed.grid;
       shots[i].startPos=parsed.start||findType(parsed.grid,'gray');
