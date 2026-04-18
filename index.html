@@ -4,187 +4,208 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Path of Truth Optimizer</title>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;900&family=Cinzel+Decorative:wght@700;900&family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Cinzel+Decorative:wght@700;900&family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bg:#070710;--bg-mid:#0e0e1a;--bg-card:#121220;--bg-card2:#161626;
-  --border-dim:#1e1e38;--border-br:#2e2e50;
-  --text:#ddd8cc;--text-dim:#606075;
-  --gold:#c8a020;--gold-br:#f0c840;--gold-glow:rgba(200,160,32,.12);
-  --c-wh:#c0c0c0;--bg-wh:#1c1c28;--bd-wh:#777;
-  --c-gr:#3dba4e;--bg-gr:#0a1e0c;--bd-gr:#3dba4e;
-  --c-bl:#4a9eff;--bg-bl:#071228;--bd-bl:#4a9eff;
-  --c-go:#ffc52e;--bg-go:#231200;--bd-go:#ffc52e;
-  --c-pk:#ff4dab;--bg-pk:#230818;--bd-pk:#ff4dab;
-  --c-rd:#e03030;--bg-rd:#1e0606;--bd-rd:#cc2222;
-  --c-sp:#9966ff;--bg-sp:#150828;--bd-sp:#9966ff;
-  --c-gy:#bbb;--bg-gy:#181828;--bd-gy:#777;
+  --bg:#070710;--bg2:#0e0e1a;--card:#121220;--dim:#1e1e38;--br:#2e2e50;
+  --txt:#ddd8cc;--muted:#606075;--gold:#c8a020;--goldbr:#f0c840;
+  --c-wh:#c0c0c0;--b-wh:#1c1c28;--d-wh:#777;
+  --c-gr:#3dba4e;--b-gr:#0a1e0c;--d-gr:#3dba4e;
+  --c-bl:#4a9eff;--b-bl:#071228;--d-bl:#4a9eff;
+  --c-go:#ffc52e;--b-go:#231200;--d-go:#ffc52e;
+  --c-pk:#ff4dab;--b-pk:#230818;--d-pk:#ff4dab;
+  --c-rd:#e03030;--b-rd:#1e0606;--d-rd:#cc2222;
+  --c-sp:#9966ff;--b-sp:#150828;--d-sp:#9966ff;
+  --c-gy:#bbb;--b-gy:#181828;--d-gy:#777;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--bg);color:var(--text);font-family:'Crimson Text',Georgia,serif;min-height:100vh;
-  background-image:radial-gradient(ellipse 50% 35% at 10% 0%,rgba(200,160,32,.05) 0%,transparent 70%),
-  radial-gradient(ellipse 40% 30% at 90% 100%,rgba(74,158,255,.05) 0%,transparent 70%)}
-header{padding:2rem 1rem 1.6rem;text-align:center;border-bottom:1px solid var(--border-dim);position:relative}
-header::after{content:'';position:absolute;bottom:-1px;left:50%;transform:translateX(-50%);width:260px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
-.htitle{font-family:'Cinzel Decorative',serif;font-size:1.55rem;font-weight:900;color:var(--gold-br);text-shadow:0 0 40px rgba(200,160,32,.5);letter-spacing:.08em}
-.hsub{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.32em;text-transform:uppercase;color:var(--text-dim);margin-top:.3rem}
-.wrap{max-width:1100px;margin:0 auto;padding:1.5rem 1rem;display:grid;gap:1.5rem}
-.card{background:var(--bg-card);border:1px solid var(--border-dim);border-radius:10px;padding:1.5rem;position:relative;overflow:hidden}
-.card::before{content:'';position:absolute;top:0;left:20px;right:20px;height:1px;background:linear-gradient(90deg,transparent,var(--border-br),transparent)}
-.slabel{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.28em;text-transform:uppercase;color:var(--gold);display:flex;align-items:center;gap:.5rem;margin-bottom:1rem}
-.slabel::after{content:'';flex:1;height:1px;background:var(--border-dim)}
-/* SLOTS */
-.slots{display:grid;grid-template-columns:repeat(5,1fr);gap:.75rem}
-@media(max-width:600px){.slots{grid-template-columns:repeat(3,1fr)}}
-@media(max-width:380px){.slots{grid-template-columns:repeat(2,1fr)}}
-.slot{border:2px dashed var(--border-br);border-radius:8px;aspect-ratio:3/4;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;cursor:pointer;transition:all .2s;overflow:hidden;background:var(--bg-mid)}
-.slot:hover{border-color:var(--gold);background:var(--gold-glow)}
-.slot.has-img{border-style:solid;border-color:var(--border-br)}
-.slot input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.slot-num{font-family:'Cinzel',serif;font-size:.6rem;letter-spacing:.15em;color:var(--text-dim);margin-bottom:.4rem}
-.slot-icon{font-size:1.4rem;margin-bottom:.2rem}
-.slot-hint{font-size:.62rem;color:var(--text-dim);text-align:center;padding:0 .3rem}
-.slot-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:6px}
-.slot-overlay{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;transition:opacity .2s}
-.slot:hover .slot-overlay{opacity:1}
-.slot-fname{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.75);font-size:.58rem;padding:.25rem .4rem;text-align:center;color:#ccc;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.slot-del{background:rgba(200,40,40,.8);border:none;border-radius:4px;color:#fff;font-size:.65rem;font-family:'Cinzel',serif;padding:.3rem .7rem;cursor:pointer;letter-spacing:.1em}
+body{background:var(--bg);color:var(--txt);font-family:'Crimson Text',serif;min-height:100vh;
+  background-image:radial-gradient(ellipse 50% 35% at 10% 0%,rgba(200,160,32,.05) 0%,transparent 70%)}
+header{padding:1.8rem 1rem 1.4rem;text-align:center;border-bottom:1px solid var(--dim);position:relative}
+header::after{content:'';position:absolute;bottom:-1px;left:50%;transform:translateX(-50%);
+  width:240px;height:1px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+.htitle{font-family:'Cinzel Decorative',serif;font-size:1.45rem;font-weight:900;color:var(--goldbr);
+  text-shadow:0 0 30px rgba(200,160,32,.4);letter-spacing:.08em}
+.hsub{font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.3em;text-transform:uppercase;color:var(--muted);margin-top:.3rem}
+.wrap{max-width:1050px;margin:0 auto;padding:1.25rem 1rem;display:grid;gap:1.25rem}
+.card{background:var(--card);border:1px solid var(--dim);border-radius:10px;padding:1.25rem;position:relative}
+.card::before{content:'';position:absolute;top:0;left:20px;right:20px;height:1px;
+  background:linear-gradient(90deg,transparent,var(--br),transparent)}
+.slabel{font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.25em;text-transform:uppercase;
+  color:var(--gold);display:flex;align-items:center;gap:.5rem;margin-bottom:.9rem}
+.slabel::after{content:'';flex:1;height:1px;background:var(--dim)}
+
 /* CONFIG */
-.cfg-row{display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;margin-top:1rem}
-.field{display:flex;flex-direction:column;gap:.28rem}
-.field label{font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.18em;text-transform:uppercase;color:var(--text-dim)}
-select,input{background:var(--bg-mid);border:1px solid var(--border-br);border-radius:5px;color:var(--text);padding:.42rem .7rem;font-family:'Crimson Text',serif;font-size:.9rem;outline:none;transition:border-color .2s;width:100%}
+.cfg{display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:.25rem}
+.field label{font-family:'Cinzel',serif;font-size:.52rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
+select,input[type=number]{background:var(--bg2);border:1px solid var(--br);border-radius:5px;color:var(--txt);
+  padding:.4rem .65rem;font-family:'Crimson Text',serif;font-size:.88rem;outline:none}
 select:focus,input:focus{border-color:var(--gold)}
-.cust-pts{display:none;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-top:.85rem}
-.cust-pts.show{display:grid}
-@media(max-width:460px){.cust-pts.show{grid-template-columns:repeat(2,1fr)}}
+#custPts{display:none;grid-template-columns:repeat(5,1fr);gap:.6rem;margin-top:.75rem}
+
+/* SLOTS */
+.slots{display:grid;grid-template-columns:repeat(5,1fr);gap:.75rem;margin-bottom:.75rem}
+@media(max-width:600px){.slots{grid-template-columns:repeat(3,1fr)}}
+.slot{border:2px dashed var(--br);border-radius:8px;aspect-ratio:3/4;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;position:relative;cursor:pointer;transition:all .2s;
+  overflow:hidden;background:var(--bg2)}
+.slot:hover{border-color:var(--gold)}
+.slot.filled{border-style:solid;border-color:var(--br)}
+.slot input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.slot-num{font-family:'Cinzel',serif;font-size:.58rem;color:var(--muted);margin-bottom:.35rem}
+.slot-hint{font-size:.6rem;color:var(--muted);text-align:center;padding:0 .3rem}
+.slot-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:6px}
+.slot-overlay{position:absolute;inset:0;background:rgba(0,0,0,.55);display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:.4rem;opacity:0;transition:opacity .2s}
+.slot:hover .slot-overlay{opacity:1}
+.slot-status{position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,.8);
+  font-size:.55rem;font-family:'Cinzel',serif;padding:.2rem .4rem;text-align:center;color:var(--goldbr)}
+.slot-del{background:rgba(200,40,40,.8);border:none;border-radius:4px;color:#fff;
+  font-size:.6rem;font-family:'Cinzel',serif;padding:.25rem .6rem;cursor:pointer}
+.slot-cal{background:rgba(200,160,32,.8);border:none;border-radius:4px;color:#000;
+  font-size:.6rem;font-family:'Cinzel',serif;padding:.25rem .6rem;cursor:pointer;font-weight:700}
+
 /* BUTTONS */
-.brow{display:flex;gap:.65rem;flex-wrap:wrap;margin-top:1rem}
-.btn{font-family:'Cinzel',serif;font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;border:none;border-radius:5px;padding:.6rem 1.3rem;cursor:pointer;transition:all .18s;display:inline-flex;align-items:center;gap:.4rem;white-space:nowrap}
-.btn-gold{background:linear-gradient(135deg,#c8a020,#f0c840);color:#06040e;font-weight:700;box-shadow:0 2px 10px rgba(200,160,32,.25)}
-.btn-gold:hover:not(:disabled){box-shadow:0 0 22px rgba(200,160,32,.5);transform:translateY(-1px)}
+.brow{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.9rem}
+.btn{font-family:'Cinzel',serif;font-size:.64rem;letter-spacing:.1em;text-transform:uppercase;
+  border:none;border-radius:5px;padding:.55rem 1.1rem;cursor:pointer;transition:all .18s;
+  display:inline-flex;align-items:center;gap:.35rem;white-space:nowrap}
+.btn-gold{background:linear-gradient(135deg,#c8a020,#f0c840);color:#06040e;font-weight:700}
+.btn-gold:hover:not(:disabled){box-shadow:0 0 20px rgba(200,160,32,.5);transform:translateY(-1px)}
 .btn-gold:disabled{opacity:.4;cursor:not-allowed}
-.btn-ghost{background:var(--bg-mid);color:var(--text);border:1px solid var(--border-br)}
-.btn-ghost:hover{border-color:var(--gold);color:var(--gold-br)}
-.btn-sm{padding:.32rem .7rem;font-size:.62rem}
-/* COMPARE */
-.compare-banner{background:linear-gradient(135deg,rgba(200,160,32,.15),rgba(200,160,32,.05));border:1px solid rgba(200,160,32,.35);border-radius:10px;padding:1.25rem;text-align:center;margin-bottom:1.5rem}
-.compare-trophy{font-size:2.5rem;margin-bottom:.4rem}
-.compare-title{font-family:'Cinzel Decorative',serif;font-size:1.1rem;font-weight:700;color:var(--gold-br)}
-.compare-sub{font-size:.85rem;color:var(--text-dim);margin-top:.25rem}
-.score-row{display:grid;gap:.65rem;margin-bottom:1.5rem}
-.score-badge{background:var(--bg-mid);border:2px solid var(--border-dim);border-radius:8px;padding:.75rem .9rem;display:flex;flex-direction:column;align-items:center;gap:.15rem;position:relative;transition:all .2s}
-.score-badge.best{border-color:var(--gold);background:rgba(200,160,32,.1);box-shadow:0 0 20px rgba(200,160,32,.2)}
-.score-badge.best::after{content:'🏆';position:absolute;top:-12px;font-size:1.2rem}
-.badge-num{font-family:'Cinzel',serif;font-size:.58rem;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim)}
-.badge-score{font-family:'Cinzel',serif;font-size:1.6rem;font-weight:700;color:var(--gold-br)}
-.badge-score.dimmed{color:var(--text-dim);font-size:1.2rem}
-.badge-cells{font-size:.72rem;color:var(--text-dim)}
-.badge-thumb{width:42px;height:52px;object-fit:cover;border-radius:4px;border:1px solid var(--border-dim);margin-bottom:.2rem}
-/* RESULT CARDS */
-.results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:1.25rem}
-@media(max-width:500px){.results-grid{grid-template-columns:1fr}}
-.result-card{background:var(--bg-card2);border:1px solid var(--border-dim);border-radius:8px;padding:1.1rem;position:relative}
-.result-card.best{border-color:var(--gold);box-shadow:0 0 20px rgba(200,160,32,.15)}
-.result-header{display:flex;align-items:center;gap:.75rem;margin-bottom:.9rem}
-.result-thumb{width:48px;height:60px;object-fit:cover;border-radius:5px;border:1px solid var(--border-br);flex-shrink:0}
-.result-meta{flex:1}
-.result-title{font-family:'Cinzel',serif;font-size:.8rem;font-weight:600;color:var(--text)}
-.result-score-big{font-family:'Cinzel',serif;font-size:1.5rem;font-weight:700;color:var(--gold-br);line-height:1}
-.result-detail{font-size:.75rem;color:var(--text-dim);margin-top:.1rem}
-.best-badge{background:var(--gold);color:#06040e;font-family:'Cinzel',serif;font-size:.55rem;letter-spacing:.15em;text-transform:uppercase;padding:.2rem .5rem;border-radius:3px;font-weight:700}
+.btn-ghost{background:var(--bg2);color:var(--txt);border:1px solid var(--br)}
+.btn-ghost:hover{border-color:var(--gold);color:var(--goldbr)}
+.btn-sm{padding:.28rem .6rem;font-size:.58rem}
+
+/* CALIBRATION MODAL */
+.cal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:1000;
+  flex-direction:column;align-items:center;justify-content:flex-start;padding:1rem;overflow:auto}
+.cal-overlay.show{display:flex}
+.cal-header{font-family:'Cinzel',serif;font-size:.85rem;color:var(--goldbr);letter-spacing:.2em;
+  text-transform:uppercase;margin-bottom:.5rem;text-align:center}
+.cal-inst{font-size:.82rem;color:var(--muted);text-align:center;margin-bottom:.75rem;line-height:1.6}
+.cal-inst b{color:var(--goldbr)}
+.cal-canvas-wrap{position:relative;display:inline-block;cursor:crosshair}
+.cal-canvas{display:block;max-width:min(500px,90vw);max-height:70vh;object-fit:contain;border:1px solid var(--br);border-radius:6px}
+.cal-dot{position:absolute;width:14px;height:14px;border-radius:50%;border:2px solid #fff;
+  transform:translate(-50%,-50%);pointer-events:none}
+.cal-actions{display:flex;gap:.75rem;margin-top:.75rem;justify-content:center;flex-wrap:wrap}
+
 /* MINI GRID */
 .mg5{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;position:relative;width:100%}
-.mcell{aspect-ratio:1;border-radius:4px;border:1.5px solid;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:1px;overflow:hidden;position:relative}
-.mcell.lit{filter:brightness(1.5);border-width:2.5px}
-.mc-top{font-size:.42rem;font-family:'Cinzel',serif;text-transform:uppercase;opacity:.55;line-height:1}
-.mc-pts{font-size:.72rem;font-family:'Cinzel',serif;font-weight:700;line-height:1;margin-top:1px}
-.mc-val{font-size:.42rem;opacity:.45;line-height:1;margin-top:1px}
-.cell-white  {background:var(--bg-wh);border-color:var(--bd-wh);color:var(--c-wh)}
-.cell-green  {background:var(--bg-gr);border-color:var(--bd-gr);color:var(--c-gr)}
-.cell-blue   {background:var(--bg-bl);border-color:var(--bd-bl);color:var(--c-bl)}
-.cell-gold   {background:var(--bg-go);border-color:var(--bd-go);color:var(--c-go)}
-.cell-pink   {background:var(--bg-pk);border-color:var(--bd-pk);color:var(--c-pk)}
-.cell-red    {background:var(--bg-rd);border-color:var(--bd-rd);color:var(--c-rd)}
-.cell-special{background:var(--bg-sp);border-color:var(--bd-sp);color:var(--c-sp)}
-.cell-gray   {background:var(--bg-gy);border-color:var(--bd-gy);color:var(--c-gy)}
-/* RED PANEL */
-.red-panel{border-radius:6px;padding:.75rem 1rem;margin-top:.75rem;font-size:.8rem;line-height:1.9}
-.red-panel.clean{background:rgba(61,186,78,.08);border:1px solid rgba(61,186,78,.25)}
-.red-panel.warn{background:rgba(200,40,40,.1);border:1px solid rgba(200,40,40,.3)}
-.rp-title{font-family:'Cinzel',serif;font-size:.56rem;letter-spacing:.2em;text-transform:uppercase;margin-bottom:.35rem}
-.rp-row{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap}
-.rp-ok{color:var(--c-gr)}
-.rp-fail{color:var(--c-rd)}
-/* MESSAGES */
-.msg{padding:.6rem .9rem;border-radius:6px;font-size:.83rem;margin-top:.65rem}
+.mcell{aspect-ratio:1;border-radius:4px;border:1.5px solid;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:1px;position:relative;cursor:pointer}
+.mcell.lit{filter:brightness(1.55);border-width:2.5px}
+.mc-lbl{font-size:.42rem;font-family:'Cinzel',serif;text-transform:uppercase;opacity:.55}
+.mc-pts{font-size:.7rem;font-family:'Cinzel',serif;font-weight:700;line-height:1;margin-top:1px}
+.mc-val{font-size:.42rem;opacity:.45;margin-top:1px}
+.cell-white  {background:var(--b-wh);border-color:var(--d-wh);color:var(--c-wh)}
+.cell-green  {background:var(--b-gr);border-color:var(--d-gr);color:var(--c-gr)}
+.cell-blue   {background:var(--b-bl);border-color:var(--d-bl);color:var(--c-bl)}
+.cell-gold   {background:var(--b-go);border-color:var(--d-go);color:var(--c-go)}
+.cell-pink   {background:var(--b-pk);border-color:var(--d-pk);color:var(--c-pk)}
+.cell-red    {background:var(--b-rd);border-color:var(--d-rd);color:var(--c-rd)}
+.cell-special{background:var(--b-sp);border-color:var(--d-sp);color:var(--c-sp)}
+.cell-gray   {background:var(--b-gy);border-color:var(--d-gy);color:var(--c-gy)}
+
+/* RESULTS */
+.results-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(380px,1fr));gap:1rem}
+@media(max-width:450px){.results-grid{grid-template-columns:1fr}}
+.res-card{background:var(--bg2);border:1px solid var(--dim);border-radius:8px;padding:1rem}
+.res-card.best{border-color:var(--gold);box-shadow:0 0 18px rgba(200,160,32,.15)}
+.res-header{display:flex;align-items:center;gap:.7rem;margin-bottom:.75rem}
+.res-thumb{width:44px;height:54px;object-fit:cover;border-radius:4px;border:1px solid var(--br);flex-shrink:0}
+.res-score{font-family:'Cinzel',serif;font-size:1.4rem;font-weight:700;color:var(--goldbr);line-height:1}
+.res-detail{font-size:.74rem;color:var(--muted);margin-top:.1rem}
+.best-badge{background:var(--gold);color:#06040e;font-family:'Cinzel',serif;font-size:.52rem;
+  letter-spacing:.12em;text-transform:uppercase;padding:.18rem .45rem;border-radius:3px;font-weight:700}
+.compare-banner{background:linear-gradient(135deg,rgba(200,160,32,.15),rgba(200,160,32,.05));
+  border:1px solid rgba(200,160,32,.35);border-radius:8px;padding:1rem;text-align:center;margin-bottom:1rem}
+.cmp-title{font-family:'Cinzel Decorative',serif;font-size:1rem;font-weight:700;color:var(--goldbr)}
+.score-row{display:grid;gap:.5rem;margin-bottom:1.2rem}
+.sc-badge{background:var(--card);border:2px solid var(--dim);border-radius:7px;padding:.6rem .8rem;
+  display:flex;flex-direction:column;align-items:center;gap:.1rem;position:relative}
+.sc-badge.best{border-color:var(--gold);background:rgba(200,160,32,.08)}
+.sc-badge.best::after{content:'🏆';position:absolute;top:-12px;font-size:1rem}
+.sc-num{font-family:'Cinzel',serif;font-size:.5rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
+.sc-val{font-family:'Cinzel',serif;font-size:1.3rem;font-weight:700;color:var(--goldbr)}
+
+/* CELL EDIT MODAL */
+.mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:800;align-items:center;justify-content:center}
+.mbg.show{display:flex}
+.modal{background:var(--card);border:1px solid var(--br);border-radius:10px;padding:1.3rem;width:90%;max-width:320px}
+.modal-title{font-family:'Cinzel',serif;font-size:.85rem;color:var(--gold);margin-bottom:.85rem}
+.color-picker{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:.75rem}
+.cp-btn{padding:.4rem .2rem;border-radius:5px;border:2px solid;cursor:pointer;font-family:'Cinzel',serif;
+  font-size:.5rem;text-transform:uppercase;text-align:center;opacity:.7;transition:all .15s}
+.cp-btn:hover,.cp-btn.sel{opacity:1;border-width:3px}
+.mini-field{display:flex;flex-direction:column;gap:.25rem;margin-bottom:.6rem}
+.mini-field label{font-family:'Cinzel',serif;font-size:.5rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
+.mini-input{background:var(--bg2);border:1px solid var(--br);border-radius:5px;color:var(--txt);
+  padding:.38rem .6rem;font-family:'Crimson Text',serif;font-size:.9rem;outline:none;width:100%}
+.mini-input:focus{border-color:var(--gold)}
+.mrow{display:flex;gap:.6rem;justify-content:flex-end;margin-top:.75rem}
+
+/* MSG / LOADER */
+.msg{padding:.55rem .85rem;border-radius:5px;font-size:.8rem;margin-top:.6rem}
 .msg-err{background:rgba(200,40,40,.12);border:1px solid rgba(200,40,40,.3);color:#ff9090}
 .msg-ok{background:rgba(60,185,70,.12);border:1px solid rgba(60,185,70,.3);color:#90e090}
 .msg-info{background:rgba(74,158,255,.1);border:1px solid rgba(74,158,255,.3);color:#90c0ff}
-/* LOADER */
-.loader{display:none;position:fixed;inset:0;background:rgba(7,7,16,.92);z-index:1000;align-items:center;justify-content:center;flex-direction:column;gap:.9rem}
+.loader{display:none;position:fixed;inset:0;background:rgba(7,7,16,.92);z-index:2000;
+  align-items:center;justify-content:center;flex-direction:column;gap:.9rem}
 .loader.show{display:flex}
-.spin{width:46px;height:46px;border:3px solid var(--border-dim);border-top-color:var(--gold);border-radius:50%;animation:rot .9s linear infinite}
+.spin{width:46px;height:46px;border:3px solid var(--dim);border-top-color:var(--gold);
+  border-radius:50%;animation:rot .9s linear infinite}
 @keyframes rot{to{transform:rotate(360deg)}}
-.load-txt{font-family:'Cinzel',serif;color:var(--gold-br);letter-spacing:.25em;font-size:.76rem}
-.load-sub{font-size:.7rem;color:var(--text-dim)}
-.load-prog{font-size:.7rem;color:var(--gold);margin-top:.1rem}
-/* MODAL */
-.mbg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:500;align-items:center;justify-content:center}
-.mbg.show{display:flex}
-.modal{background:var(--bg-card);border:1px solid var(--border-br);border-radius:10px;padding:1.4rem;width:90%;max-width:360px}
-.modal-title{font-family:'Cinzel',serif;font-size:.9rem;color:var(--gold);margin-bottom:.9rem}
-.mrow{display:flex;gap:.65rem;justify-content:flex-end;margin-top:.9rem}
+.load-txt{font-family:'Cinzel',serif;color:var(--goldbr);letter-spacing:.2em;font-size:.75rem}
+.load-sub{font-size:.68rem;color:var(--muted)}
 .hidden{display:none!important}
-.dim{color:var(--text-dim)}
+.dim{color:var(--muted)}
 </style>
 </head>
 <body>
-
 <header>
   <span style="font-size:1.8rem;display:block;margin-bottom:.35rem">⚔️</span>
   <div class="htitle">Path of Truth Optimizer</div>
-  <div class="hsub">Up to 5 Screenshots · Auto-Solve · Best Path Finder</div>
+  <div class="hsub">Upload · Click 2 Grid Corners · Auto-Detect Colors · Solve</div>
 </header>
 
 <div class="wrap">
 
-<!-- UPLOAD & CONFIG -->
-<div class="card" id="card-up">
-  <div class="slabel">① Upload Grids (1–5 screenshots)</div>
+<!-- CONFIG -->
+<div class="card">
+  <div class="slabel">① Ascension Level</div>
+  <div class="cfg">
+    <div class="field">
+      <label>Level</label>
+      <select id="ascSel" onchange="onAscChange()">
+        <option value="default">Default</option>
+        <option value="lv4">Level 4</option>
+        <option value="lv5">Level 5</option>
+        <option value="custom">Custom</option>
+      </select>
+    </div>
+    <div id="ptsPrev" style="font-size:.8rem;color:var(--muted);padding:.4rem 0;align-self:flex-end"></div>
+  </div>
+  <div id="custPts">
+    <div class="field"><label>Common</label><input type="number" id="p_w" value="1" min="0" onchange="refreshPts()"></div>
+    <div class="field"><label>Rare</label><input type="number" id="p_g" value="2" min="0" onchange="refreshPts()"></div>
+    <div class="field"><label>Epic</label><input type="number" id="p_b" value="4" min="0" onchange="refreshPts()"></div>
+    <div class="field"><label>Legend.</label><input type="number" id="p_go" value="8" min="0" onchange="refreshPts()"></div>
+    <div class="field"><label>Mythic</label><input type="number" id="p_p" value="16" min="0" onchange="refreshPts()"></div>
+  </div>
+</div>
+
+<!-- UPLOAD -->
+<div class="card">
+  <div class="slabel">② Upload Screenshots</div>
   <div class="slots" id="slotsRow"></div>
-  <div style="font-size:.76rem;color:var(--text-dim);margin-top:.6rem;text-align:center">
-    Click any slot to upload · All will be solved and compared
+  <div style="font-size:.76rem;color:var(--muted);text-align:center;margin-bottom:.5rem">
+    After uploading, click <b style="color:var(--goldbr)">Calibrate</b> on each screenshot to mark the grid corners
   </div>
-
-  <div style="margin-top:1.2rem">
-    <div class="slabel">② Ascension Level</div>
-    <div class="cfg-row">
-      <div class="field" style="min-width:160px">
-        <label>Level</label>
-        <select id="ascSel" onchange="onAscChange()">
-          <option value="default">Default</option>
-          <option value="lv4">Level 4</option>
-          <option value="lv5">Level 5</option>
-          <option value="custom">Custom</option>
-        </select>
-      </div>
-      <div class="field" style="flex:1">
-        <label>Tier Values</label>
-        <div id="ptsPrev" style="font-size:.82rem;color:var(--text-dim);line-height:1.8;padding:.42rem 0"></div>
-      </div>
-    </div>
-    <div class="cust-pts" id="custPts">
-      <div class="field"><label>⬜ Common</label><input type="number" id="p_w" value="1" min="0" onchange="refreshPts()"></div>
-      <div class="field"><label>🟩 Rare</label><input type="number" id="p_g" value="2" min="0" onchange="refreshPts()"></div>
-      <div class="field"><label>🔷 Epic</label><input type="number" id="p_b" value="4" min="0" onchange="refreshPts()"></div>
-      <div class="field"><label>🟡 Legend.</label><input type="number" id="p_go" value="8" min="0" onchange="refreshPts()"></div>
-      <div class="field"><label>💜 Mythic</label><input type="number" id="p_p" value="16" min="0" onchange="refreshPts()"></div>
-    </div>
-  </div>
-
   <div class="brow">
-    <button class="btn btn-gold" id="solveAllBtn" onclick="doSolveAll()" disabled>⚡ Parse &amp; Solve All</button>
+    <button class="btn btn-gold" id="solveBtn" onclick="doSolveAll()" disabled>⚡ Solve All</button>
     <button class="btn btn-ghost btn-sm" onclick="clearAll()">✕ Clear All</button>
   </div>
   <div id="msgMain"></div>
@@ -192,181 +213,220 @@ select:focus,input:focus{border-color:var(--gold)}
 
 <!-- RESULTS -->
 <div class="card hidden" id="card-results">
-  <div class="slabel">③ Results Comparison</div>
-  <div class="compare-banner">
-    <div class="compare-trophy">🏆</div>
-    <div class="compare-title" id="bannerTitle">—</div>
-    <div class="compare-sub" id="bannerSub">—</div>
-  </div>
-  <div class="score-row" id="scoreRow"></div>
+  <div class="slabel">③ Results</div>
+  <div id="compareBanner"></div>
+  <div id="scoreRow"></div>
   <div class="results-grid" id="resultsGrid"></div>
 </div>
 
 </div>
 
-<!-- Loader -->
-<div class="loader" id="loader">
-  <div class="spin"></div>
-  <div class="load-txt" id="loadTxt">WORKING…</div>
-  <div class="load-sub" id="loadSub"></div>
-  <div class="load-prog" id="loadProg"></div>
+<!-- CALIBRATION OVERLAY -->
+<div class="cal-overlay" id="calOverlay">
+  <div class="cal-header">Calibrate Grid Bounds</div>
+  <div class="cal-inst" id="calInst">
+    <b>Click the TOP-LEFT corner</b> of the first tile in the grid
+  </div>
+  <div class="cal-canvas-wrap" id="calWrap">
+    <img class="cal-canvas" id="calImg" alt="">
+  </div>
+  <div class="cal-actions">
+    <button class="btn btn-ghost btn-sm" onclick="cancelCal()">Cancel</button>
+    <button class="btn btn-gold btn-sm hidden" id="calConfirm" onclick="confirmCal()">✓ Looks Good — Detect Colors</button>
+    <button class="btn btn-ghost btn-sm hidden" id="calReset" onclick="resetCal()">↩ Reset Clicks</button>
+  </div>
 </div>
 
-<!-- Edit Modal -->
-<div class="mbg" id="editMod">
+<!-- CELL EDIT MODAL -->
+<div class="mbg" id="editModal">
   <div class="modal">
     <div class="modal-title">Edit Cell — <span id="editPos"></span></div>
-    <div style="font-size:.78rem;color:var(--c-rd);background:rgba(200,40,40,.1);border:1px solid rgba(200,40,40,.25);border-radius:5px;padding:.5rem .75rem;margin-bottom:.75rem;line-height:1.5">
-      ⚠ For red cells: enter the value as <b>negative</b> (e.g. ÷13,312% → enter <b>-13312</b>). The solver always treats red cell values as penalties.
+    <div class="color-picker" id="colorPicker"></div>
+    <div class="mini-field">
+      <label>Value (÷ cells enter as negative, e.g. -998)</label>
+      <input type="number" class="mini-input" id="editVal" placeholder="-998 or 6656">
     </div>
-    <div class="field" style="margin-bottom:.7rem">
-      <label>Type / Rarity</label>
-      <select id="editType">
-        <option value="gray">⬛ Gray / Start (S)</option>
-        <option value="special">🔮 Special / Flag (End)</option>
-        <option value="white">⬜ White / Common</option>
-        <option value="green">🟩 Green / Rare</option>
-        <option value="blue">🔷 Blue / Epic</option>
-        <option value="gold">🟡 Gold / Legendary</option>
-        <option value="pink">💜 Pink / Mythic</option>
-        <option value="red">🔴 Red / Negative</option>
-      </select>
-    </div>
-    <div class="field" style="margin-bottom:.7rem">
-      <label>Icon (for red eligibility check)</label>
-      <input type="text" id="editIcon" placeholder="coin, damage, defense, xp, lightning…">
-    </div>
-    <div class="field">
-      <label>Displayed Value — enter negative for ÷ cells (÷998 → -998)</label>
-      <input type="number" id="editVal" placeholder="e.g. -13312 or -998">
+    <div class="mini-field">
+      <label>Icon (for red tile coverage check)</label>
+      <input type="text" class="mini-input" id="editIcon" placeholder="coin, damage, heart…">
     </div>
     <div class="mrow">
-      <button class="btn btn-ghost btn-sm" onclick="closeMod()">Cancel</button>
-      <button class="btn btn-gold btn-sm" onclick="saveEdit()">✓ Save &amp; Re-solve</button>
+      <button class="btn btn-ghost btn-sm" onclick="closeEdit()">Cancel</button>
+      <button class="btn btn-gold btn-sm" onclick="saveEdit()">✓ Save</button>
     </div>
   </div>
 </div>
 
+<!-- LOADER -->
+<div class="loader" id="loader">
+  <div class="spin"></div>
+  <div class="load-txt" id="loadTxt">WORKING…</div>
+  <div class="load-sub" id="loadSub"></div>
+</div>
+
 <script>
 // ── CONSTANTS ──────────────────────────────────────────────────────
-const MAX_SHOTS=5;
+const WORKER='https://path.m2w.workers.dev';
+const MAX=5;
+const TYPES=['green','blue','gold','pink','white','red','gray','special'];
+const LABELS={green:'Rare',blue:'Epic',gold:'Legend',pink:'Mythic',white:'Common',red:'Cursed',gray:'Start',special:'Flag'};
 const PRESETS={
   default:{white:1,green:2,blue:4,gold:8,pink:16},
-  lv4:    {white:1,green:10,blue:20,gold:50,pink:150},
-  lv5:    {white:1,green:14,blue:28,gold:70,pink:210},
+  lv4:{white:1,green:10,blue:20,gold:50,pink:150},
+  lv5:{white:1,green:14,blue:28,gold:70,pink:210},
 };
-const RNAMES={white:'Common',green:'Rare',blue:'Epic',gold:'Legendary',pink:'Mythic',red:'Negative',special:'Flag',gray:'Start'};
-const RCOLORS={white:'var(--c-wh)',green:'var(--c-gr)',blue:'var(--c-bl)',gold:'var(--c-go)',pink:'var(--c-pk)',red:'var(--c-rd)',special:'var(--c-sp)',gray:'var(--c-gy)'};
+
+// Reference background colors for each tile type (sampled from actual game)
+// These are the dark background colors in each corner of the tile
+const REF_COLORS={
+  green:  [20, 75, 22],
+  blue:   [15, 30, 110],
+  gold:   [75, 38,  5],
+  pink:   [75, 12, 55],
+  red:    [80,  8,  8],
+  gray:   [55, 55, 72],
+  special:[48, 12, 88],
+  white:  [155,148,138],
+};
 
 // ── STATE ──────────────────────────────────────────────────────────
-let shots=[], editTarget=null;
+// shot: {imgB64, imgDataUrl, fileName, bounds:{x1f,y1f,x2f,y2f}, grid:5×5, result}
+let shots=[], calIdx=-1, calClicks=[], editTarget=null;
 
-// ── SLOT UI ────────────────────────────────────────────────────────
+// ── CONFIG ─────────────────────────────────────────────────────────
+function onAscChange(){
+  const v=document.getElementById('ascSel').value;
+  document.getElementById('custPts').style.display=v==='custom'?'grid':'none';
+  refreshPts();
+}
+function getPreset(){
+  const v=document.getElementById('ascSel').value;
+  if(v==='custom')return{white:+document.getElementById('p_w').value||1,green:+document.getElementById('p_g').value||2,blue:+document.getElementById('p_b').value||4,gold:+document.getElementById('p_go').value||8,pink:+document.getElementById('p_p').value||16};
+  return{...(PRESETS[v]||PRESETS.default)};
+}
+function tierScore(type){if(type==='red'||type==='gray'||type==='special')return 0;return getPreset()[type]??0;}
+function refreshPts(){
+  const p=getPreset();
+  document.getElementById('ptsPrev').innerHTML=`Rare <b style="color:var(--c-gr)">${p.green}</b> · Epic <b style="color:var(--c-bl)">${p.blue}</b> · Legend <b style="color:var(--c-go)">${p.gold}</b> · Mythic <b style="color:var(--c-pk)">${p.pink}</b>`;
+}
+
+// ── SLOTS ──────────────────────────────────────────────────────────
 function buildSlots(){
   const row=document.getElementById('slotsRow');
   row.innerHTML='';
-  for(let i=0;i<MAX_SHOTS;i++){
+  for(let i=0;i<MAX;i++){
     const s=shots[i], div=document.createElement('div');
-    div.className='slot'+(s?' has-img':'');
-    div.id=`slot-${i}`;
+    div.className='slot'+(s?' filled':'');
     if(s){
-      div.innerHTML=`<img class="slot-img" src="${s.imgDataUrl}" alt="">
-        <div class="slot-overlay"><button class="slot-del" onclick="removeShot(${i},event)">✕ Remove</button></div>
-        <div class="slot-fname">#${i+1} ${s.fileName}</div>`;
+      const calDone=!!s.bounds;
+      const gridDone=!!s.grid;
+      div.innerHTML=`<img class="slot-img" src="${s.imgDataUrl}">
+        <div class="slot-overlay">
+          <button class="slot-cal" onclick="startCal(${i},event)">${calDone?'↩ Recalibrate':'📍 Calibrate'}</button>
+          <button class="slot-del" onclick="removeShot(${i},event)">✕ Remove</button>
+        </div>
+        <div class="slot-status">${gridDone?'✓ Ready':calDone?'✓ Calibrated':'⚠ Needs Calibration'}</div>`;
     } else {
       div.innerHTML=`<input type="file" accept="image/*" onchange="addShot(${i},this)">
-        <div class="slot-num">SLOT ${i+1}</div>
-        <div class="slot-icon">+</div>
+        <div class="slot-num">Slot ${i+1}</div>
+        <div style="font-size:1.4rem">+</div>
         <div class="slot-hint">Click to upload</div>`;
     }
     row.appendChild(div);
   }
-  document.getElementById('solveAllBtn').disabled=shots.length===0;
+  const anyReady=shots.some(s=>s&&s.bounds);
+  document.getElementById('solveBtn').disabled=!anyReady;
 }
 
 function addShot(idx,input){
-  const file=input.files[0]; if(!file) return;
+  const f=input.files[0]; if(!f) return;
   const r=new FileReader();
   r.onload=e=>{
-    const url=e.target.result,b64=url.split(',')[1];
-    if(idx>=shots.length) shots.push({imgB64:b64,fileName:file.name,imgDataUrl:url,grid:null,startPos:null,endPos:null,result:null});
-    else shots[idx]={imgB64:b64,fileName:file.name,imgDataUrl:url,grid:null,startPos:null,endPos:null,result:null};
+    const url=e.target.result;
+    shots[idx]={imgB64:url.split(',')[1],imgDataUrl:url,fileName:f.name,bounds:null,grid:null,result:null};
     buildSlots();
   };
-  r.readAsDataURL(file);
+  r.readAsDataURL(f);
 }
-function removeShot(idx,e){ e.stopPropagation(); shots.splice(idx,1); buildSlots(); if(shots.length===0) hide('card-results'); }
-function clearAll(){ shots=[]; buildSlots(); hide('card-results'); setMsg('msgMain','',''); }
+function removeShot(idx,e){e.stopPropagation();shots[idx]=null;buildSlots();hide('card-results');}
+function clearAll(){shots=Array(MAX).fill(null);buildSlots();hide('card-results');}
 
-// ── CONFIG ─────────────────────────────────────────────────────────
-function onAscChange(){ document.getElementById('custPts').classList.toggle('show',document.getElementById('ascSel').value==='custom'); refreshPts(); }
-function getPreset(){
-  const v=document.getElementById('ascSel').value;
-  if(v==='custom') return{white:+document.getElementById('p_w').value||1,green:+document.getElementById('p_g').value||2,blue:+document.getElementById('p_b').value||4,gold:+document.getElementById('p_go').value||8,pink:+document.getElementById('p_p').value||16};
-  return{...(PRESETS[v]||PRESETS.default)};
+// ── CALIBRATION ────────────────────────────────────────────────────
+// Show overlay with screenshot, user clicks top-left then bottom-right of grid
+function startCal(idx,e){
+  e.stopPropagation();
+  calIdx=idx; calClicks=[];
+  const img=document.getElementById('calImg');
+  img.src=shots[idx].imgDataUrl;
+  document.getElementById('calInst').innerHTML='<b>Step 1 of 2:</b> Click the <b style="color:var(--goldbr)">TOP-LEFT corner</b> of the very first tile (top-left tile in the grid)';
+  hide('calConfirm'); hide('calReset');
+  // Remove old dots
+  document.querySelectorAll('.cal-dot').forEach(d=>d.remove());
+  document.getElementById('calOverlay').classList.add('show');
+  // Click handler on image
+  img.onclick=onCalClick;
 }
-function refreshPts(){
-  const p=getPreset();
-  document.getElementById('ptsPrev').innerHTML=`Common <b>${p.white}</b> · Rare <b style="color:var(--c-gr)">${p.green}</b> · Epic <b style="color:var(--c-bl)">${p.blue}</b> · Legend <b style="color:var(--c-go)">${p.gold}</b> · Mythic <b style="color:var(--c-pk)">${p.pink}</b> · Red <b style="color:var(--c-rd)">0 (free if covered)</b>`;
+function onCalClick(e){
+  const img=document.getElementById('calImg');
+  const rect=img.getBoundingClientRect();
+  const xf=(e.clientX-rect.left)/rect.width;
+  const yf=(e.clientY-rect.top)/rect.height;
+  calClicks.push({xf,yf,px:e.clientX-rect.left,py:e.clientY-rect.top});
+
+  // Draw dot
+  const dot=document.createElement('div');
+  dot.className='cal-dot';
+  dot.style.left=(e.clientX-rect.left)+'px';
+  dot.style.top=(e.clientY-rect.top)+'px';
+  dot.style.background=calClicks.length===1?'#3dba4e':'#9966ff';
+  document.getElementById('calWrap').appendChild(dot);
+
+  if(calClicks.length===1){
+    document.getElementById('calInst').innerHTML='<b>Step 2 of 2:</b> Click the <b style="color:var(--c-sp)">BOTTOM-RIGHT corner</b> of the very last tile (bottom-right tile in the grid)';
+    show('calReset');
+  }
+  if(calClicks.length===2){
+    document.getElementById('calInst').innerHTML='<b>✓ Grid calibrated!</b> Check the dots look right — top-left = green dot, bottom-right = purple dot.';
+    show('calConfirm');
+  }
 }
-function tierScore(type){ if(type==='red'||type==='gray'||type==='special') return 0; return getPreset()[type]??0; }
-
-// ── WORKER URL ──────────────────────────────────────────────────────
-const WORKER='https://path.m2w.workers.dev';
-
-// ─────────────────────────────────────────────────────────────────────
-// SINGLE API CALL: Claude reads everything — type, value, icon, start, end.
-// Pixel detection was unreliable due to varying grid positions and colors.
-// ─────────────────────────────────────────────────────────────────────
-
-
-// ── STEP 1: Ask Claude for grid pixel bounds only ─────────────────────
-const BOUNDS_PROMPT=`This is a mobile game screenshot. Find the 5x5 grid of colored square tiles.
-Return ONLY JSON with the bounding box as fractions (0.0 to 1.0) of the full image dimensions:
-{"x1":0.08,"y1":0.27,"x2":0.88,"y2":0.79}
-Where x1,y1 = top-left corner of the grid, x2,y2 = bottom-right corner.
-Include only the tile area, not the border/shadow around it.
-No markdown, no explanation — only the JSON object.`;
-
-async function detectGridBounds(imgB64){
-  const res=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    model:'claude-sonnet-4-20250514',max_tokens:80,
-    messages:[{role:'user',content:[
-      {type:'image',source:{type:'base64',media_type:'image/jpeg',data:imgB64}},
-      {type:'text',text:BOUNDS_PROMPT}
-    ]}]
-  })});
-  const data=await res.json();
-  if(!res.ok) throw new Error(data.error?.message||'Bounds API error');
-  const raw=data.content.map(b=>b.text||'').join('').trim();
-  const j=JSON.parse(raw.replace(/```json|```/g,'').trim());
-  // Convert x1/y1/x2/y2 to x/y/w/h
-  return {x:j.x1, y:j.y1, w:j.x2-j.x1, h:j.y2-j.y1};
+function resetCal(){
+  calClicks=[];
+  document.querySelectorAll('.cal-dot').forEach(d=>d.remove());
+  document.getElementById('calInst').innerHTML='<b>Step 1 of 2:</b> Click the <b style="color:var(--goldbr)">TOP-LEFT corner</b> of the very first tile';
+  hide('calConfirm'); hide('calReset');
 }
-
-// ── STEP 2: Sample corner pixels of each cell for color ────────────────
-// Corners avoid the icon/text in the center — this is accurate
-function classifyRGB(r,g,b){
-  // Purple/violet → flag end tile
-  if(b>90 && r>70 && g<80 && r>60 && b>r*0.85 && b>g*1.4) return 'special';
-  // Gray/silver → S start tile (all channels roughly equal, medium brightness)
-  if(Math.abs(r-g)<30 && Math.abs(g-b)<30 && Math.abs(r-b)<30 && r>80 && r<190) return 'gray';
-  // Pink/magenta → mythic
-  if(r>100 && b>80 && g<70 && r>b*0.8) return 'pink';
-  // Blue → epic (blue dominant, green low)
-  if(b>80 && b>r*1.2 && b>g*1.4 && g<70) return 'blue';
-  // Gold/amber → legendary (red dominant, green moderate, blue very low)
-  if(r>90 && g>50 && g<r*0.85 && b<55 && r>g*1.15) return 'gold';
-  // Red/crimson → cursed (red dominant, green and blue very low)
-  if(r>70 && r>g*2.0 && r>b*2.0 && g<60) return 'red';
-  // White/light → common
-  if(r>160 && g>160 && b>160) return 'white';
-  // Green → rare (green dominant) — default
-  return 'green';
+function cancelCal(){
+  document.getElementById('calOverlay').classList.remove('show');
+  document.getElementById('calImg').onclick=null;
+  calIdx=-1; calClicks=[];
+}
+async function confirmCal(){
+  if(calClicks.length<2) return;
+  const [a,b]=calClicks;
+  shots[calIdx].bounds={x1f:a.xf,y1f:a.yf,x2f:b.xf,y2f:b.yf};
+  cancelCal();
+  // Immediately detect colors from pixels
+  showLoad('Detecting colors…','Sampling pixel colors from grid');
+  await tick();
+  await detectAndReadGrid(calIdx);
+  hideLoad();
+  buildSlots();
 }
 
-function sampleCellType(ctx, cellX, cellY, cellW, cellH){
-  // Sample 4 corners at 15% inset — these are background, not icon
+// ── COLOR DETECTION ────────────────────────────────────────────────
+// Nearest-neighbor match against reference colors
+function classifyColor(r,g,b){
+  let best='green', bestDist=Infinity;
+  for(const[type,ref] of Object.entries(REF_COLORS)){
+    const d=Math.sqrt((r-ref[0])**2+(g-ref[1])**2+(b-ref[2])**2);
+    if(d<bestDist){bestDist=d;best=type;}
+  }
+  return best;
+}
+
+// Sample 4 corners of a cell (15% inset) and classify
+function sampleCell(ctx, cellX, cellY, cellW, cellH){
   const inX=cellW*0.15, inY=cellH*0.15;
   const corners=[
     [cellX+inX,       cellY+inY],
@@ -374,17 +434,19 @@ function sampleCellType(ctx, cellX, cellY, cellW, cellH){
     [cellX+inX,       cellY+cellH-inY],
     [cellX+cellW-inX, cellY+cellH-inY],
   ];
-  let tR=0,tG=0,tB=0;
+  // Vote: classify each corner, take majority
+  const votes={};
   for(const[px,py] of corners){
-    const d=ctx.getImageData(Math.round(px),Math.round(py),4,4).data;
-    let r=0,g=0,b=0,n=0;
-    for(let i=0;i<d.length;i+=4){r+=d[i];g+=d[i+1];b+=d[i+2];n++;}
-    tR+=r/n; tG+=g/n; tB+=b/n;
+    const d=ctx.getImageData(Math.round(px),Math.round(py),5,5).data;
+    let R=0,G=0,B=0,n=0;
+    for(let i=0;i<d.length;i+=4){R+=d[i];G+=d[i+1];B+=d[i+2];n++;}
+    const type=classifyColor(R/n,G/n,B/n);
+    votes[type]=(votes[type]||0)+1;
   }
-  return classifyRGB(tR/4, tG/4, tB/4);
+  return Object.entries(votes).sort((a,b)=>b[1]-a[1])[0][0];
 }
 
-function sampleGridColors(imgDataUrl, bounds){
+function detectColors(imgDataUrl, bounds){
   return new Promise((resolve,reject)=>{
     const img=new Image();
     img.onload=()=>{
@@ -393,13 +455,13 @@ function sampleGridColors(imgDataUrl, bounds){
       cv.width=W; cv.height=H;
       const ctx=cv.getContext('2d');
       ctx.drawImage(img,0,0);
-      const gx=bounds.x*W, gy=bounds.y*H;
-      const gw=bounds.w*W, gh=bounds.h*H;
+      const gx=bounds.x1f*W, gy=bounds.y1f*H;
+      const gw=(bounds.x2f-bounds.x1f)*W, gh=(bounds.y2f-bounds.y1f)*H;
       const cw=gw/5, ch=gh/5;
       const types=[];
       for(let r=0;r<5;r++)
         for(let c=0;c<5;c++)
-          types.push(sampleCellType(ctx, gx+c*cw, gy+r*ch, cw, ch));
+          types.push(sampleCell(ctx, gx+c*cw, gy+r*ch, cw, ch));
       resolve(types);
     };
     img.onerror=reject;
@@ -407,29 +469,19 @@ function sampleGridColors(imgDataUrl, bounds){
   });
 }
 
-// ── STEP 3: Ask Claude for values + icons only (no color) ─────────────
-const VALUES_PROMPT=`You are a JSON-only data extractor. Respond with ONLY a JSON array starting with [ — no words before it.
+// ── VALUES FROM CLAUDE ─────────────────────────────────────────────
+const VALUES_PROMPT=`This mobile game screenshot has a 5×5 grid of 25 tiles. Read tiles left-to-right, top-to-bottom.
+Respond ONLY with a JSON array of exactly 25 objects — nothing before the [.
 
-This mobile game screenshot has a 5x5 grid of 25 tiles. Read left-to-right, top-to-bottom.
-For each tile return ONE object:
-- "value": the number shown. "+" = positive integer. "÷" = NEGATIVE integer (÷998 = -998, ÷6,656 = -6656). Values in parentheses like (+6,656%) = NEGATIVE -6656. No number = 0. Strip commas and %.
-- "icon": one lowercase word for the small icon: "coin","damage","defense","xp","lightning","move","ghost","heart","target","misc"
-- "is_start": true only if this tile has a large letter S on it, false otherwise
-- "is_end": true only if this tile has a flag/pennant icon on it, false otherwise
+For each tile:
+- "value": integer shown. "+" prefix = positive. "÷" prefix = NEGATIVE (÷998→-998, ÷6,656→-6656). Values in parentheses like (+6,656%) = NEGATIVE -6656. No number = 0. Strip commas/%.
+- "icon": one lowercase word for the icon: "coin","damage","defense","xp","lightning","move","ghost","heart","target","misc"
+- "is_start": true if tile has large letter S, else false
+- "is_end": true if tile has a flag/pennant, else false
 
-Start your response with [ and nothing else before it:
 [{"value":1564,"icon":"move","is_start":false,"is_end":false},...]`;
 
-function extractJSON(raw){
-  try{ return JSON.parse(raw); }catch(e){}
-  const s=raw.indexOf('['), e=raw.lastIndexOf(']');
-  if(s!==-1&&e>s){ try{ return JSON.parse(raw.slice(s,e+1)); }catch(e2){} }
-  const s2=raw.indexOf('{'), e2=raw.lastIndexOf('}');
-  if(s2!==-1&&e2>s2){ try{ return JSON.parse(raw.slice(s2,e2+1)); }catch(e2){} }
-  throw new Error('Cannot parse JSON. Got: '+raw.slice(0,150));
-}
-
-async function readValuesIcons(imgB64){
+async function readValues(imgB64){
   const res=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
     model:'claude-sonnet-4-20250514',max_tokens:1500,
     messages:[{role:'user',content:[
@@ -438,331 +490,276 @@ async function readValuesIcons(imgB64){
     ]}]
   })});
   const data=await res.json();
-  if(!res.ok) throw new Error(data.error?.message||'Values API error');
+  if(!res.ok) throw new Error(data.error?.message||'API error');
   const raw=data.content.map(b=>b.text||'').join('').trim();
-  const flat=extractJSON(raw);
-  if(!Array.isArray(flat)||flat.length!==25) throw new Error(`Expected 25 items, got ${flat?.length}`);
+  // Extract JSON array
+  const s=raw.indexOf('['),e=raw.lastIndexOf(']');
+  if(s===-1||e===-1) throw new Error('No JSON array in response');
+  const flat=JSON.parse(raw.slice(s,e+1));
+  if(!Array.isArray(flat)||flat.length!==25) throw new Error(`Expected 25, got ${flat?.length}`);
   return flat;
 }
 
+// ── DETECT + READ GRID ─────────────────────────────────────────────
+async function detectAndReadGrid(idx){
+  const shot=shots[idx];
+  try{
+    // 1. Pixel color detection
+    const types=await detectColors(shot.imgDataUrl, shot.bounds);
 
-// ── MAIN SOLVE ALL ──────────────────────────────────────────────────
+    // 2. Claude reads values + icons
+    showLoad('Reading values…',shot.fileName,'AI reading numbers and icons only');
+    await tick();
+    const vals=await readValues(shot.imgB64);
+
+    // 3. Merge
+    const flat=types.map((type,i)=>{
+      const vi=vals[i]||{value:0,icon:'misc',is_start:false,is_end:false};
+      let finalType=type;
+      if(vi.is_start) finalType='gray';
+      if(vi.is_end)   finalType='special';
+      let value=typeof vi.value==='number'?vi.value:0;
+      if(finalType==='red'&&value>0) value=-value;
+      return{type:finalType, value, icon:(vi.icon||'misc').toLowerCase()};
+    });
+    const grid=[];
+    for(let r=0;r<5;r++) grid.push(flat.slice(r*5,r*5+5));
+    shot.grid=grid;
+    shot.result=null;
+  }catch(e){
+    console.error(e);
+    shot.grid=null;
+    setMsg('msgMain','✗ '+e.message,'err');
+  }
+}
+
+// ── SOLVE ALL ─────────────────────────────────────────────────────
 async function doSolveAll(){
-  if(shots.length===0) return;
+  const active=shots.filter(s=>s&&s.bounds);
+  if(!active.length) return;
   setMsg('msgMain','',''); hide('card-results');
 
   for(let i=0;i<shots.length;i++){
-    try{
-      // Step 1: Detect grid bounds via Claude (focused single task)
-      showLoad(`Screenshot ${i+1}/${shots.length} — Locating Grid…`,shots[i].fileName,'Finding grid position');
+    const s=shots[i];
+    if(!s||!s.bounds) continue;
+    if(!s.grid){
+      showLoad(`Reading Screenshot ${i+1}…`,s.fileName,'Detecting colors + reading values');
       await tick();
-      let bounds;
-      try{
-        bounds=await detectGridBounds(shots[i].imgB64);
-        if(!bounds||bounds.w<0.1||bounds.h<0.1) throw new Error('bad bounds');
-      }catch(e){
-        console.warn('Bounds detection failed, using fallback',e);
-        bounds={x:0.10,y:0.28,w:0.78,h:0.52};
-      }
-
-      // Step 2: Sample pixel colors from corners of each cell
-      showLoad(`Screenshot ${i+1}/${shots.length} — Reading Colors…`,shots[i].fileName,'Pixel sampling cell backgrounds');
+      await detectAndReadGrid(i);
+    }
+    if(s.grid){
+      showLoad(`Solving Screenshot ${i+1}…`,s.fileName,'Finding best path S → Flag');
       await tick();
-      const types=await sampleGridColors(shots[i].imgDataUrl, bounds);
-
-      // Step 3: Claude reads values + icons + identifies S and flag
-      showLoad(`Screenshot ${i+1}/${shots.length} — Reading Values…`,shots[i].fileName,'AI reading numbers and icons');
-      await tick();
-      const valIcons=await readValuesIcons(shots[i].imgB64);
-
-      // Step 4: Merge — pixel colors for type, Claude for values/icons/start/end
-      const flat=types.map((type,idx)=>{
-        const vi=valIcons[idx]||{value:0,icon:'misc',is_start:false,is_end:false};
-        // Override pixel color with definitive start/end from Claude
-        let finalType=type;
-        if(vi.is_start) finalType='gray';
-        if(vi.is_end)   finalType='special';
-        let value=typeof vi.value==='number'?vi.value:0;
-        if(finalType==='red'&&value>0) value=-value;
-        return{type:finalType, value, icon:(vi.icon||'misc').toLowerCase()};
-      });
-      const grid=[];
-      for(let r=0;r<5;r++) grid.push(flat.slice(r*5,r*5+5));
-
-      shots[i].grid=grid;
-      shots[i].startPos=findType(grid,'gray');
-      shots[i].endPos=findType(grid,'special');
-
-      // Step 5: Solve
-      showLoad(`Screenshot ${i+1}/${shots.length} — Solving Path…`,shots[i].fileName,'Running S → Flag optimizer');
-      await tick();
-      shots[i].result=shots[i].startPos&&shots[i].endPos
-        ? runDFS(grid,shots[i].startPos,shots[i].endPos)
-        : {score:0,path:[],redLog:[],error:'S or Flag tile not found'};
-
-    }catch(e){
-      console.error(e);
-      shots[i].result={score:0,path:[],redLog:[],error:e.message};
+      const sPos=findType(s.grid,'gray'), ePos=findType(s.grid,'special');
+      s.result=sPos&&ePos ? runDFS(s.grid,sPos,ePos) : {score:0,path:[],redLog:[],error:'S or Flag not found'};
     }
   }
-  hideLoad();
-  renderResults();
+  hideLoad(); buildSlots(); renderResults();
   show('card-results');
   document.getElementById('card-results').scrollIntoView({behavior:'smooth',block:'start'});
 }
 
-// ── DFS ─────────────────────────────────────────────────────────────
-// Red tile eligibility:
-//   Red tiles ALWAYS have a penalty = abs(cell.value) (forced negative above).
-//   A red tile can only be traversed if the running iconTotals for its icon
-//   is >= abs(penalty), meaning positive cells of same icon already in path
-//   fully cover the red tile's ÷ value.
-//   Score = sum of tier pts for non-red cells only.
+// ── DFS ───────────────────────────────────────────────────────────
+function findType(grid,type){
+  for(let r=0;r<5;r++) for(let c=0;c<5;c++) if(grid[r][c].type===type) return[r,c];
+  return null;
+}
 function runDFS(data,sPos,ePos){
   const[sr,sc]=sPos,[er,ec]=ePos;
   const t0=Date.now(),LIMIT=4800;
   let bestScore=-Infinity,bestPath=[],bestRedLog=[];
   const visited=Array.from({length:5},()=>Array(5).fill(false));
-  const iconTotals={}; // icon → running sum of display values
-
-  function ub(cur){
-    let x=0;
-    for(let r=0;r<5;r++) for(let c=0;c<5;c++) if(!visited[r][c]) x+=tierScore(data[r][c].type);
-    return cur+x;
-  }
-  function addIcon(cell){
-    const icon=(cell.icon||'misc').toLowerCase(),val=typeof cell.value==='number'?cell.value:0,prev=iconTotals[icon]||0;
-    iconTotals[icon]=prev+val; return{icon,prev};
-  }
-  function undoIcon({icon,prev}){ iconTotals[icon]=prev; }
-
-  // canTraverse: for red cells, the value has already been forced negative.
-  // Require that running total for this icon + penalty stays >= 0.
+  const iconTotals={};
+  function ub(cur){let x=0;for(let r=0;r<5;r++)for(let c=0;c<5;c++)if(!visited[r][c])x+=tierScore(data[r][c].type);return cur+x;}
+  function addIcon(cell){const icon=(cell.icon||'misc').toLowerCase(),val=typeof cell.value==='number'?cell.value:0,prev=iconTotals[icon]||0;iconTotals[icon]=prev+val;return{icon,prev};}
+  function undoIcon({icon,prev}){iconTotals[icon]=prev;}
   function canTraverse(cell){
-    if(cell.type!=='red') return true;
-    const penalty=typeof cell.value==='number'?cell.value:0; // always negative or 0
-    if(penalty>=0) return true; // 0 means no penalty listed
-    const icon=(cell.icon||'misc').toLowerCase();
-    const currentPositives=iconTotals[icon]||0;
-    return currentPositives+penalty>=0; // coverage must cover the penalty
+    if(cell.type!=='red')return true;
+    const p=typeof cell.value==='number'?cell.value:0;
+    if(p>=0)return true;
+    return(iconTotals[(cell.icon||'misc').toLowerCase()]||0)+p>=0;
   }
-
   const redLog=[];
   function dfs(r,c,path,score){
-    if(Date.now()-t0>LIMIT) return;
-    if(r===er&&c===ec){
-      if(score>bestScore){bestScore=score;bestPath=[...path];bestRedLog=[...redLog];}
-      return;
-    }
-    if(ub(score)<=bestScore) return;
+    if(Date.now()-t0>LIMIT)return;
+    if(r===er&&c===ec){if(score>bestScore){bestScore=score;bestPath=[...path];bestRedLog=[...redLog];}return;}
+    if(ub(score)<=bestScore)return;
     for(const[dr,dc]of[[-1,0],[1,0],[0,-1],[0,1]]){
       const nr=r+dr,nc=c+dc;
-      if(nr<0||nr>=5||nc<0||nc>=5||visited[nr][nc]) continue;
-      if(Date.now()-t0>LIMIT) return;
+      if(nr<0||nr>=5||nc<0||nc>=5||visited[nr][nc])continue;
       const next=data[nr][nc];
-      if(!canTraverse(next)) continue; // red not covered → skip
-      if(next.type==='red'){
-        const icon=(next.icon||'misc').toLowerCase(),penalty=typeof next.value==='number'?next.value:0;
-        const available=iconTotals[icon]||0;
-        redLog.push({r:nr,c:nc,icon,penalty,available,ok:available+penalty>=0});
-      }
-      visited[nr][nc]=true; path.push([nr,nc]);
+      if(!canTraverse(next))continue;
+      if(next.type==='red'){const icon=(next.icon||'misc').toLowerCase(),p=typeof next.value==='number'?next.value:0;redLog.push({r:nr,c:nc,icon,penalty:p,available:iconTotals[icon]||0});}
+      visited[nr][nc]=true;path.push([nr,nc]);
       const u=addIcon(next);
       dfs(nr,nc,path,score+tierScore(next.type));
-      undoIcon(u); path.pop(); visited[nr][nc]=false;
-      if(next.type==='red') redLog.pop();
+      undoIcon(u);path.pop();visited[nr][nc]=false;
+      if(next.type==='red')redLog.pop();
     }
   }
-  visited[sr][sc]=true;
-  const u0=addIcon(data[sr][sc]);
+  visited[sr][sc]=true;const u0=addIcon(data[sr][sc]);
   dfs(sr,sc,[[sr,sc]],tierScore(data[sr][sc].type));
   undoIcon(u0);
   return{score:bestScore,path:bestPath,redLog:bestRedLog};
 }
 
-function findType(grid,type){
-  for(let r=0;r<5;r++) for(let c=0;c<5;c++) if(grid[r][c].type===type) return[r,c];
-  return null;
-}
-
 // ── RENDER RESULTS ─────────────────────────────────────────────────
 function renderResults(){
-  let winnerIdx=-1,winnerScore=-Infinity;
-  shots.forEach((s,i)=>{ if(s.result&&s.result.score>winnerScore){winnerScore=s.result.score;winnerIdx=i;} });
+  const valid=shots.map((s,i)=>({s,i})).filter(({s})=>s&&s.result&&s.result.path.length>0);
+  const winIdx=valid.reduce((best,{s,i})=>s.result.score>shots[best]?.result?.score?i:best, valid[0]?.i??0);
 
-  if(winnerIdx>=0&&winnerScore>0){
-    document.getElementById('bannerTitle').textContent=`Screenshot ${winnerIdx+1} is the Best!`;
-    document.getElementById('bannerSub').textContent=`${winnerScore.toLocaleString()} points · ${shots[winnerIdx].result.path.length} cells · ${shots[winnerIdx].fileName}`;
-  } else {
-    document.getElementById('bannerTitle').textContent='No valid paths found';
-    document.getElementById('bannerSub').textContent='Check that S and Flag cells are correctly identified.';
-  }
+  // Banner
+  const cb=document.getElementById('compareBanner');
+  if(valid.length>1){
+    cb.innerHTML=`<div class="compare-banner"><div style="font-size:2rem;margin-bottom:.3rem">🏆</div>
+      <div class="cmp-title">Screenshot ${winIdx+1} is Best — ${shots[winIdx].result.score.toLocaleString()} pts</div></div>`;
+  } else cb.innerHTML='';
 
   // Score badges
   const sr=document.getElementById('scoreRow');
-  sr.style.gridTemplateColumns=`repeat(${shots.length},1fr)`;
-  sr.innerHTML=shots.map((s,i)=>{
-    const r=s.result,isBest=i===winnerIdx&&r&&r.score>0;
-    return`<div class="score-badge${isBest?' best':''}">
-      <img class="badge-thumb" src="${s.imgDataUrl}" alt="">
-      <div class="badge-num">Screenshot ${i+1}</div>
-      ${r&&r.path.length>0
-        ?`<div class="badge-score">${r.score.toLocaleString()}<span style="font-size:.75rem;color:var(--text-dim)"> pts</span></div><div class="badge-cells">${r.path.length} cells</div>`
-        :`<div class="badge-score dimmed">${r&&r.error?'Error':'No path'}</div>`}
-    </div>`;
-  }).join('');
+  const activeSots=shots.map((s,i)=>({s,i})).filter(({s})=>s&&s.result);
+  if(activeSots.length>1){
+    sr.style.gridTemplateColumns=`repeat(${activeSots.length},1fr)`;
+    sr.innerHTML='<div style="grid-column:1/-1" class="slabel" style="margin-bottom:.5rem">Score Comparison</div>'+
+    activeSots.map(({s,i})=>{
+      const isBest=i===winIdx&&s.result.score>0;
+      return`<div class="sc-badge${isBest?' best':''}">
+        <div class="sc-num">Screenshot ${i+1}</div>
+        ${s.result.path.length>0?`<div class="sc-val">${s.result.score.toLocaleString()}</div><div class="dim" style="font-size:.68rem">${s.result.path.length} cells</div>`:
+        `<div class="sc-val" style="color:var(--muted);font-size:1rem">—</div>`}
+      </div>`;
+    }).join('');
+  } else sr.innerHTML='';
 
-  // Result cards
+  // Detail cards
   document.getElementById('resultsGrid').innerHTML=shots.map((s,i)=>{
-    const r=s.result,isBest=i===winnerIdx&&r&&r.score>0,hasResult=r&&r.path.length>0;
-    return`<div class="result-card${isBest?' best':''}">
-      <div class="result-header">
-        <img class="result-thumb" src="${s.imgDataUrl}" alt="">
-        <div class="result-meta">
-          <div class="result-title">Screenshot ${i+1} ${isBest?'<span class="best-badge">🏆 BEST</span>':''}</div>
-          <div class="result-score-big" style="color:${hasResult?'var(--gold-br)':'var(--text-dim)'}">
-            ${hasResult?r.score.toLocaleString():(r&&r.error?'Error':'—')}${hasResult?'<span style="font-size:.8rem;color:var(--text-dim)"> pts</span>':''}
+    if(!s||!s.result) return'';
+    const isBest=i===winIdx&&s.result.score>0, hasResult=s.result.path.length>0;
+    return`<div class="res-card${isBest?' best':''}">
+      <div class="res-header">
+        <img class="res-thumb" src="${s.imgDataUrl}">
+        <div>
+          <div style="font-family:'Cinzel',serif;font-size:.78rem;margin-bottom:.2rem">
+            Screenshot ${i+1} ${isBest?'<span class="best-badge">🏆 BEST</span>':''}
           </div>
-          <div class="result-detail">${hasResult?`${r.path.length} cells · ${s.fileName}`:(r&&r.error?r.error:s.fileName)}</div>
+          ${hasResult?`<div class="res-score">${s.result.score.toLocaleString()}<span style="font-size:.75rem;color:var(--muted)"> pts</span></div>
+          <div class="res-detail">${s.result.path.length} cells · ${s.fileName}</div>`
+          :`<div class="res-score" style="color:var(--muted);font-size:1rem">${s.result.error||'No path'}</div>`}
         </div>
       </div>
       ${hasResult?`
-        <div class="mg5" id="grid-${i}">${buildMiniGrid(s.grid,r.path,s.startPos,s.endPos)}</div>
-        ${buildRedPanel(r.redLog, s.grid, i)}
-      `:`<div style="font-size:.8rem;color:var(--text-dim);text-align:center;padding:1rem">No valid path — check S and Flag cells are detected.</div>`}
+        <div class="mg5" id="grid-${i}" style="margin-bottom:.5rem">${buildMiniHTML(s.grid,s.result.path,i)}</div>
+        ${s.result.redLog&&s.result.redLog.length>0?`<div style="font-size:.72rem;color:var(--c-gr);line-height:1.7;background:rgba(61,186,78,.07);border:1px solid rgba(61,186,78,.2);border-radius:5px;padding:.5rem .7rem">
+          🔴 Red tiles covered: ${s.result.redLog.map(x=>`R${x.r+1}C${x.c+1} (${x.icon} ÷${Math.abs(x.penalty).toLocaleString()}% covered by +${x.available.toLocaleString()}%)`).join(', ')}
+        </div>`:''}
+      `:''}
     </div>`;
-  }).join('');
+  }).filter(Boolean).join('');
 
-  requestAnimationFrame(()=>shots.forEach((s,i)=>{ if(s.result&&s.result.path.length>0) drawSVG(`grid-${i}`,s.result.path); }));
+  requestAnimationFrame(()=>{
+    shots.forEach((s,i)=>{if(s&&s.result&&s.result.path.length>0) drawSVG(`grid-${i}`,s.result.path);});
+  });
 }
 
-function buildRedPanel(redLog, grid, shotIdx){
-  if(!redLog||redLog.length===0) return'';
-  // All should be ok=true since DFS only selects covered reds
-  const anyFail=redLog.some(x=>!x.ok);
-  return`<div class="red-panel ${anyFail?'warn':'clean'}">
-    <div class="rp-title" style="color:${anyFail?'var(--c-rd)':'var(--c-gr)'}">
-      🔴 Red Tiles Crossed ${anyFail?'— ⚠ Coverage Issue Detected':'— All Covered ✓'}
-    </div>
-    ${redLog.map(x=>{
-      const penAbs=Math.abs(x.penalty),covered=x.available>=penAbs;
-      return`<div class="rp-row">
-        <span>${covered?'<b class="rp-ok">✓</b>':'<b class="rp-fail">✗</b>'}</span>
-        <span>R${x.r+1}C${x.c+1}</span>
-        <span class="dim">·</span>
-        <span><i>${x.icon}</i> ÷${fmtNum(penAbs)}%</span>
-        <span class="dim">needs</span>
-        <span><b>+${fmtNum(penAbs)}%</b></span>
-        <span class="dim">found</span>
-        <span style="color:${covered?'var(--c-gr)':'var(--c-rd)'}"><b>${x.available>=0?'+':''}${fmtNum(x.available)}%</b></span>
-        <span>${covered?'<span class="rp-ok">✓ covered</span>':'<span class="rp-fail">✗ insufficient — edit cell to correct</span>'}</span>
-        ${!covered?`<button class="btn btn-ghost btn-sm" onclick="openEdit(${shotIdx},${x.r},${x.c})" style="margin-left:.4rem">Edit</button>`:''}
-      </div>`;
-    }).join('')}
-  </div>`;
-}
-
-function buildMiniGrid(data,path,startPos,endPos){
+function buildMiniHTML(data,path,shotIdx){
   const pathSet=new Set(path.map(([r,c])=>`${r},${c}`));
-  let html='';
-  for(let r=0;r<5;r++) for(let c=0;c<5;c++){
-    const cell=data[r][c],onPath=pathSet.has(`${r},${c}`);
-    const score=tierScore(cell.type);
-    const isS=startPos&&startPos[0]===r&&startPos[1]===c,isF=endPos&&endPos[0]===r&&endPos[1]===c;
-    const top=isS?'S':isF?'⚑':RNAMES[cell.type]||cell.type;
-    const dv=typeof cell.value==='number'&&cell.value!==0?fmtPct(cell.value):'';
-    html+=`<div class="mcell cell-${cell.type}${onPath?' lit':''}">
-      <div class="mc-top">${top}</div>
-      <div class="mc-pts">${score>0?score:cell.type==='red'?'÷':'—'}</div>
-      <div class="mc-val">${dv}</div>
-    </div>`;
-  }
-  return html;
+  return Array.from({length:5},(_,r)=>
+    Array.from({length:5},(_,c)=>{
+      const cell=data[r][c],onPath=pathSet.has(`${r},${c}`);
+      const score=tierScore(cell.type),dv=cell.value!==0?fmtVal(cell.value):'';
+      return`<div class="mcell cell-${cell.type}${onPath?' lit':''}" onclick="openEdit(${shotIdx},${r},${c})">
+        <div class="mc-lbl">${LABELS[cell.type]}</div>
+        <div class="mc-pts">${score>0?score:cell.type==='red'?'÷':'—'}</div>
+        <div class="mc-val">${dv}</div>
+      </div>`;
+    }).join('')
+  ).join('');
 }
 
-// ── SVG LINE ───────────────────────────────────────────────────────
-function drawSVG(gridId,path){
-  const container=document.getElementById(gridId);
-  if(!container||!path||path.length<2) return;
-  container.querySelectorAll('.path-svg').forEach(s=>s.remove());
-  const cells=container.querySelectorAll('.mcell');
+// ── SVG PATH ─────────────────────────────────────────────────────
+function drawSVG(id,path){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.querySelectorAll('.psvg').forEach(s=>s.remove());
+  if(!path||path.length<2) return;
+  const cells=el.querySelectorAll('.mcell');
   if(!cells.length) return;
-  const W=container.offsetWidth,H=container.offsetHeight;
+  const W=el.offsetWidth,H=el.offsetHeight;
   const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-  svg.className='path-svg';
+  svg.className='psvg';
   svg.setAttribute('width',W); svg.setAttribute('height',H);
   svg.style.cssText='position:absolute;top:0;left:0;pointer-events:none;z-index:5;overflow:visible';
-
   const centers=path.map(([r,c])=>{
     const cell=cells[r*5+c];
-    return{x:cell.offsetLeft+cell.offsetWidth/2, y:cell.offsetTop+cell.offsetHeight/2};
+    return{x:cell.offsetLeft+cell.offsetWidth/2,y:cell.offsetTop+cell.offsetHeight/2};
   });
-
-  const mkLine=(pts,stroke,w,op)=>{
+  const mkLine=(pts,col,w,op)=>{
     const pl=document.createElementNS('http://www.w3.org/2000/svg','polyline');
     pl.setAttribute('points',pts.map(p=>`${p.x},${p.y}`).join(' '));
-    pl.setAttribute('stroke',stroke); pl.setAttribute('stroke-width',w); pl.setAttribute('stroke-opacity',op);
+    pl.setAttribute('stroke',col); pl.setAttribute('stroke-width',w); pl.setAttribute('stroke-opacity',op);
     pl.setAttribute('fill','none'); pl.setAttribute('stroke-linecap','round'); pl.setAttribute('stroke-linejoin','round');
     return pl;
   };
   svg.appendChild(mkLine(centers,'#f0c840',8,0.15));
   svg.appendChild(mkLine(centers,'#f0c840',2.5,0.9));
-
   centers.forEach(({x,y},i)=>{
-    const isS=i===0,isE=i===path.length-1;
-    const fill=isS?'#3dba4e':isE?'#9966ff':'#f0c840',cr=isS||isE?7:4.5;
+    const isS=i===0,isE=i===path.length-1,fill=isS?'#3dba4e':isE?'#9966ff':'#f0c840',cr=isS||isE?7:4.5;
     const circ=document.createElementNS('http://www.w3.org/2000/svg','circle');
     circ.setAttribute('cx',x); circ.setAttribute('cy',y); circ.setAttribute('r',cr);
-    circ.setAttribute('fill',fill); circ.setAttribute('fill-opacity','0.95'); circ.setAttribute('stroke','#000'); circ.setAttribute('stroke-width','1');
+    circ.setAttribute('fill',fill); circ.setAttribute('stroke','#000'); circ.setAttribute('stroke-width','1');
     svg.appendChild(circ);
     const txt=document.createElementNS('http://www.w3.org/2000/svg','text');
-    txt.setAttribute('x',x); txt.setAttribute('y',y+3); txt.setAttribute('text-anchor','middle');
+    txt.setAttribute('x',x); txt.setAttribute('y',y+3.5); txt.setAttribute('text-anchor','middle');
     txt.setAttribute('font-size','6'); txt.setAttribute('font-family','Cinzel,serif'); txt.setAttribute('font-weight','700'); txt.setAttribute('fill','#fff');
     txt.textContent=isS?'S':isE?'F':(i+1);
     svg.appendChild(txt);
   });
-  container.appendChild(svg);
+  el.appendChild(svg);
 }
 
-// ── EDIT MODAL ─────────────────────────────────────────────────────
+// ── CELL EDIT MODAL ────────────────────────────────────────────────
 function openEdit(shotIdx,r,c){
   editTarget={shotIdx,r,c};
   const cell=shots[shotIdx].grid[r][c];
   document.getElementById('editPos').textContent=`Shot ${shotIdx+1} · R${r+1}C${c+1}`;
-  document.getElementById('editType').value=cell.type;
-  document.getElementById('editIcon').value=cell.icon||'';
-  document.getElementById('editVal').value=cell.value!==null?cell.value:'';
-  document.getElementById('editMod').classList.add('show');
+  // Build color picker
+  const cp=document.getElementById('colorPicker');
+  cp.innerHTML=TYPES.map(t=>`<div class="cp-btn cell-${t}${cell.type===t?' sel':''}" onclick="setEditType('${t}')">${LABELS[t]}</div>`).join('');
+  document.getElementById('editVal').value=cell.value!==0?cell.value:'';
+  document.getElementById('editIcon').value=cell.icon&&cell.icon!=='misc'?cell.icon:'';
+  document.getElementById('editModal').classList.add('show');
 }
-function closeMod(){ document.getElementById('editMod').classList.remove('show'); editTarget=null; }
+function setEditType(t){
+  document.querySelectorAll('.cp-btn').forEach(b=>b.classList.toggle('sel',b.classList.contains(`cell-${t}`)));
+  editTarget._type=t;
+}
+function closeEdit(){document.getElementById('editModal').classList.remove('show');editTarget=null;}
 function saveEdit(){
   if(!editTarget) return;
-  const{shotIdx,r,c}=editTarget,nt=document.getElementById('editType').value;
-  const ni=document.getElementById('editIcon').value.trim().toLowerCase()||'misc';
+  const{shotIdx,r,c}=editTarget;
+  const cell=shots[shotIdx].grid[r][c];
+  const newType=editTarget._type||cell.type;
   const vs=document.getElementById('editVal').value;
-  let val=vs!==''?parseFloat(vs):null;
-  // Force red values to be negative
-  if(nt==='red'&&val!==null&&val>0) val=-val;
-  shots[shotIdx].grid[r][c]={type:nt,icon:ni,value:val};
-  if(nt==='gray') shots[shotIdx].startPos=[r,c];
-  if(nt==='special') shots[shotIdx].endPos=[r,c];
-  if(shots[shotIdx].startPos&&shots[shotIdx].endPos)
-    shots[shotIdx].result=runDFS(shots[shotIdx].grid,shots[shotIdx].startPos,shots[shotIdx].endPos);
-  closeMod();
-  renderResults();
+  let val=vs!==''?parseFloat(vs):0;
+  if(newType==='red'&&val>0) val=-val;
+  shots[shotIdx].grid[r][c]={type:newType,value:val,icon:document.getElementById('editIcon').value.trim().toLowerCase()||'misc'};
+  // Re-solve this shot
+  const sPos=findType(shots[shotIdx].grid,'gray'),ePos=findType(shots[shotIdx].grid,'special');
+  if(sPos&&ePos) shots[shotIdx].result=runDFS(shots[shotIdx].grid,sPos,ePos);
+  closeEdit(); renderResults(); buildSlots();
 }
 
-// ── UTILS ──────────────────────────────────────────────────────────
-function fmtPct(v){ if(!v)return''; const a=Math.abs(v),s=v<0?'÷':'+'; if(a>=1000)return`${s}${(a/1000).toFixed(a%1000===0?0:1)}k%`; return`${s}${a}%`; }
-function fmtNum(v){ if(v>=1000)return`${(v/1000).toFixed(v%1000===0?0:1)}k`; return`${v}`; }
-function show(id){ document.getElementById(id).classList.remove('hidden'); }
-function hide(id){ document.getElementById(id).classList.add('hidden'); }
-function showLoad(txt,sub,prog){ document.getElementById('loadTxt').textContent=txt; document.getElementById('loadSub').textContent=sub||''; document.getElementById('loadProg').textContent=prog||''; document.getElementById('loader').classList.add('show'); }
-function hideLoad(){ document.getElementById('loader').classList.remove('show'); }
-function setMsg(id,txt,type){ const el=document.getElementById(id); el.innerHTML=txt?`<div class="msg msg-${type}">${txt}</div>`:''; }
-function tick(){ return new Promise(r=>setTimeout(r,40)); }
+// ── UTILS ─────────────────────────────────────────────────────────
+function fmtVal(v){if(!v)return'';const a=Math.abs(v),s=v<0?'÷':'+';if(a>=1000)return`${s}${(a/1000).toFixed(a%1000===0?0:1)}k%`;return`${s}${a}%`;}
+function show(id){document.getElementById(id).classList.remove('hidden');}
+function hide(id){document.getElementById(id).classList.add('hidden');}
+function showLoad(txt,sub){document.getElementById('loadTxt').textContent=txt;document.getElementById('loadSub').textContent=sub||'';document.getElementById('loader').classList.add('show');}
+function hideLoad(){document.getElementById('loader').classList.remove('show');}
+function setMsg(id,txt,type){const el=document.getElementById(id);el.innerHTML=txt?`<div class="msg msg-${type}">${txt}</div>`:''}
+function tick(){return new Promise(r=>setTimeout(r,40));}
 
-// ── INIT ───────────────────────────────────────────────────────────
+// ── INIT ──────────────────────────────────────────────────────────
+shots=Array(MAX).fill(null);
 buildSlots(); onAscChange(); refreshPts();
 </script>
 </body>
