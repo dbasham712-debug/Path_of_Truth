@@ -319,80 +319,132 @@ const WORKER='https://path.m2w.workers.dev';
 // Pixel detection was unreliable due to varying grid positions and colors.
 // ─────────────────────────────────────────────────────────────────────
 
-const PARSE_PROMPT=`You are a JSON-only data extractor for a mobile game. Respond with ONLY a JSON object — no words, no explanation, no preamble, no markdown. Your response must start with { and end with }.
 
-The screenshot shows a 5×5 grid of 25 colored tiles. Read tiles left-to-right, top-to-bottom.
+// ── STEP 1: Ask Claude for grid pixel bounds only ─────────────────────
+const BOUNDS_PROMPT=`This is a mobile game screenshot. Find the 5x5 grid of colored square tiles.
+Return ONLY JSON with the bounding box as fractions (0.0 to 1.0) of the full image dimensions:
+{"x1":0.08,"y1":0.27,"x2":0.88,"y2":0.79}
+Where x1,y1 = top-left corner of the grid, x2,y2 = bottom-right corner.
+Include only the tile area, not the border/shadow around it.
+No markdown, no explanation — only the JSON object.`;
 
-Find:
-1. The START tile — it has a blue-gray or silver background with a large letter "S" on it.
-2. The END tile — it has a dark purple/violet background with a flag or pennant icon.
-
-For each of the 25 tiles identify:
-- "type": BACKGROUND color only — ignore ALL icon colors, glow effects, and text colors. Look at the solid fill behind everything.
-  "green"   = dark green background — BY FAR MOST COMMON, expect 15-22 green tiles per grid.
-  "blue"    = dark navy/cobalt BACKGROUND only (0-3 tiles). Whole tile bg must be dark blue.
-  "gold"    = dark amber/golden-brown BACKGROUND only (0-2 tiles). Whole tile bg must be amber.
-  "pink"    = dark magenta/hot-pink BACKGROUND only (0-1 tiles).
-  "white"   = light gray or off-white BACKGROUND.
-  "red"     = dark crimson/maroon BACKGROUND — cursed tiles (0-3 tiles).
-  "gray"    = START tile — blue-gray or silver background with large letter S.
-  "special" = END tile — purple/violet background with flag icon.
-
-  !!! CRITICAL — HOW TO TELL BLUE FROM GREEN !!!
-  A TRUE BLUE (Epic) tile: the background in ALL FOUR CORNERS of the tile is dark navy/cobalt blue.
-  A GREEN tile with a blue icon: the background in all four corners is dark green — only the small icon in the middle is blue.
-  Look at the CORNERS of the tile, not the center. The corners reveal the true background color.
-
-  Common mistakes to avoid:
-  - Green tile with BLUE lightning bolt icon → "green" (corners are green, only icon is blue)
-  - Green tile with GOLD coin icon → "green" (corners are green, only icon is gold)
-  - Green tile with RED fire icon → "green" (corners are green, only icon is red)
-  - Green tile with ÷ value → "green" (the ÷ symbol does NOT mean red/cursed)
-
-  Only use "blue" if ALL FOUR CORNERS of the tile look dark navy blue.
-  Only use "red" if ALL FOUR CORNERS of the tile look dark crimson/maroon.
-  Only use "gold" if ALL FOUR CORNERS of the tile look dark amber/brown-gold.
-  When in any doubt — use "green".
-
-- "value": integer from the tile. "+" prefix = positive. "÷" prefix = NEGATIVE (÷998 = -998, ÷6,656 = -6656). Parentheses like (+6,656%) = NEGATIVE -6656. No number = 0. Strip commas and %.
-
-- "icon": one lowercase word: "coin","damage","defense","xp","lightning","move","ghost","heart","target","misc"
-
-Return ONLY this JSON with nothing before or after it:
-{"start":[row,col],"end":[row,col],"grid":[[{"type":"green","value":1564,"icon":"move"},...],...]}
-
-where row/col are 0-indexed (row 0 = top row, col 0 = leftmost column).`;
-
-function extractJSON(raw){
-  try{ return JSON.parse(raw); }catch(e){}
-  const s=raw.indexOf('{'), e2=raw.lastIndexOf('}');
-  if(s!==-1&&e2>s){ try{ return JSON.parse(raw.slice(s,e2+1)); }catch(e){} }
-  try{ return JSON.parse(raw.replace(/```json|```/g,'').trim()); }catch(e){}
-  throw new Error('Could not parse JSON. First 200 chars: '+raw.slice(0,200));
-}
-
-
-async function parseGrid(imgB64){
+async function detectGridBounds(imgB64){
   const res=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    model:'claude-sonnet-4-20250514',max_tokens:2000,
+    model:'claude-sonnet-4-20250514',max_tokens:80,
     messages:[{role:'user',content:[
       {type:'image',source:{type:'base64',media_type:'image/jpeg',data:imgB64}},
-      {type:'text',text:PARSE_PROMPT}
+      {type:'text',text:BOUNDS_PROMPT}
     ]}]
   })});
   const data=await res.json();
-  if(!res.ok) throw new Error(data.error?.message||'API error');
+  if(!res.ok) throw new Error(data.error?.message||'Bounds API error');
   const raw=data.content.map(b=>b.text||'').join('').trim();
-  const parsed=extractJSON(raw);
-  if(!parsed.grid||parsed.grid.length!==5) throw new Error('Invalid grid structure returned');
-  for(let r=0;r<5;r++) if(!parsed.grid[r]||parsed.grid[r].length!==5) throw new Error(`Row ${r+1} missing cells`);
-  // Force red values negative
-  for(let r=0;r<5;r++) for(let c=0;c<5;c++){
-    const cell=parsed.grid[r][c];
-    if(cell.type==='red'&&typeof cell.value==='number'&&cell.value>0) cell.value=-cell.value;
-  }
-  return parsed;
+  const j=JSON.parse(raw.replace(/```json|```/g,'').trim());
+  // Convert x1/y1/x2/y2 to x/y/w/h
+  return {x:j.x1, y:j.y1, w:j.x2-j.x1, h:j.y2-j.y1};
 }
+
+// ── STEP 2: Sample corner pixels of each cell for color ────────────────
+// Corners avoid the icon/text in the center — this is accurate
+function classifyRGB(r,g,b){
+  // Purple/violet → flag end tile
+  if(b>90 && r>70 && g<80 && r>60 && b>r*0.85 && b>g*1.4) return 'special';
+  // Gray/silver → S start tile (all channels roughly equal, medium brightness)
+  if(Math.abs(r-g)<30 && Math.abs(g-b)<30 && Math.abs(r-b)<30 && r>80 && r<190) return 'gray';
+  // Pink/magenta → mythic
+  if(r>100 && b>80 && g<70 && r>b*0.8) return 'pink';
+  // Blue → epic (blue dominant, green low)
+  if(b>80 && b>r*1.2 && b>g*1.4 && g<70) return 'blue';
+  // Gold/amber → legendary (red dominant, green moderate, blue very low)
+  if(r>90 && g>50 && g<r*0.85 && b<55 && r>g*1.15) return 'gold';
+  // Red/crimson → cursed (red dominant, green and blue very low)
+  if(r>70 && r>g*2.0 && r>b*2.0 && g<60) return 'red';
+  // White/light → common
+  if(r>160 && g>160 && b>160) return 'white';
+  // Green → rare (green dominant) — default
+  return 'green';
+}
+
+function sampleCellType(ctx, cellX, cellY, cellW, cellH){
+  // Sample 4 corners at 15% inset — these are background, not icon
+  const inX=cellW*0.15, inY=cellH*0.15;
+  const corners=[
+    [cellX+inX,       cellY+inY],
+    [cellX+cellW-inX, cellY+inY],
+    [cellX+inX,       cellY+cellH-inY],
+    [cellX+cellW-inX, cellY+cellH-inY],
+  ];
+  let tR=0,tG=0,tB=0;
+  for(const[px,py] of corners){
+    const d=ctx.getImageData(Math.round(px),Math.round(py),4,4).data;
+    let r=0,g=0,b=0,n=0;
+    for(let i=0;i<d.length;i+=4){r+=d[i];g+=d[i+1];b+=d[i+2];n++;}
+    tR+=r/n; tG+=g/n; tB+=b/n;
+  }
+  return classifyRGB(tR/4, tG/4, tB/4);
+}
+
+function sampleGridColors(imgDataUrl, bounds){
+  return new Promise((resolve,reject)=>{
+    const img=new Image();
+    img.onload=()=>{
+      const W=img.naturalWidth, H=img.naturalHeight;
+      const cv=document.createElement('canvas');
+      cv.width=W; cv.height=H;
+      const ctx=cv.getContext('2d');
+      ctx.drawImage(img,0,0);
+      const gx=bounds.x*W, gy=bounds.y*H;
+      const gw=bounds.w*W, gh=bounds.h*H;
+      const cw=gw/5, ch=gh/5;
+      const types=[];
+      for(let r=0;r<5;r++)
+        for(let c=0;c<5;c++)
+          types.push(sampleCellType(ctx, gx+c*cw, gy+r*ch, cw, ch));
+      resolve(types);
+    };
+    img.onerror=reject;
+    img.src=imgDataUrl;
+  });
+}
+
+// ── STEP 3: Ask Claude for values + icons only (no color) ─────────────
+const VALUES_PROMPT=`You are a JSON-only data extractor. Respond with ONLY a JSON array starting with [ — no words before it.
+
+This mobile game screenshot has a 5x5 grid of 25 tiles. Read left-to-right, top-to-bottom.
+For each tile return ONE object:
+- "value": the number shown. "+" = positive integer. "÷" = NEGATIVE integer (÷998 = -998, ÷6,656 = -6656). Values in parentheses like (+6,656%) = NEGATIVE -6656. No number = 0. Strip commas and %.
+- "icon": one lowercase word for the small icon: "coin","damage","defense","xp","lightning","move","ghost","heart","target","misc"
+- "is_start": true only if this tile has a large letter S on it, false otherwise
+- "is_end": true only if this tile has a flag/pennant icon on it, false otherwise
+
+Start your response with [ and nothing else before it:
+[{"value":1564,"icon":"move","is_start":false,"is_end":false},...]`;
+
+function extractJSON(raw){
+  try{ return JSON.parse(raw); }catch(e){}
+  const s=raw.indexOf('['), e=raw.lastIndexOf(']');
+  if(s!==-1&&e>s){ try{ return JSON.parse(raw.slice(s,e+1)); }catch(e2){} }
+  const s2=raw.indexOf('{'), e2=raw.lastIndexOf('}');
+  if(s2!==-1&&e2>s2){ try{ return JSON.parse(raw.slice(s2,e2+1)); }catch(e2){} }
+  throw new Error('Cannot parse JSON. Got: '+raw.slice(0,150));
+}
+
+async function readValuesIcons(imgB64){
+  const res=await fetch(WORKER,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    model:'claude-sonnet-4-20250514',max_tokens:1500,
+    messages:[{role:'user',content:[
+      {type:'image',source:{type:'base64',media_type:'image/jpeg',data:imgB64}},
+      {type:'text',text:VALUES_PROMPT}
+    ]}]
+  })});
+  const data=await res.json();
+  if(!res.ok) throw new Error(data.error?.message||'Values API error');
+  const raw=data.content.map(b=>b.text||'').join('').trim();
+  const flat=extractJSON(raw);
+  if(!Array.isArray(flat)||flat.length!==25) throw new Error(`Expected 25 items, got ${flat?.length}`);
+  return flat;
+}
+
 
 // ── MAIN SOLVE ALL ──────────────────────────────────────────────────
 async function doSolveAll(){
@@ -401,21 +453,52 @@ async function doSolveAll(){
 
   for(let i=0;i<shots.length;i++){
     try{
-      // Step 1: Parse grid (type + value + icon + start + end) in one call
-      showLoad(`Screenshot ${i+1}/${shots.length} — Reading Grid…`,shots[i].fileName,'AI parsing tiles, values, and icons');
+      // Step 1: Detect grid bounds via Claude (focused single task)
+      showLoad(`Screenshot ${i+1}/${shots.length} — Locating Grid…`,shots[i].fileName,'Finding grid position');
       await tick();
-      const parsed=await parseGrid(shots[i].imgB64);
+      let bounds;
+      try{
+        bounds=await detectGridBounds(shots[i].imgB64);
+        if(!bounds||bounds.w<0.1||bounds.h<0.1) throw new Error('bad bounds');
+      }catch(e){
+        console.warn('Bounds detection failed, using fallback',e);
+        bounds={x:0.10,y:0.28,w:0.78,h:0.52};
+      }
 
-      shots[i].grid=parsed.grid;
-      shots[i].startPos=parsed.start||findType(parsed.grid,'gray');
-      shots[i].endPos=parsed.end||findType(parsed.grid,'special');
+      // Step 2: Sample pixel colors from corners of each cell
+      showLoad(`Screenshot ${i+1}/${shots.length} — Reading Colors…`,shots[i].fileName,'Pixel sampling cell backgrounds');
+      await tick();
+      const types=await sampleGridColors(shots[i].imgDataUrl, bounds);
 
-      // Step 2: Solve path
+      // Step 3: Claude reads values + icons + identifies S and flag
+      showLoad(`Screenshot ${i+1}/${shots.length} — Reading Values…`,shots[i].fileName,'AI reading numbers and icons');
+      await tick();
+      const valIcons=await readValuesIcons(shots[i].imgB64);
+
+      // Step 4: Merge — pixel colors for type, Claude for values/icons/start/end
+      const flat=types.map((type,idx)=>{
+        const vi=valIcons[idx]||{value:0,icon:'misc',is_start:false,is_end:false};
+        // Override pixel color with definitive start/end from Claude
+        let finalType=type;
+        if(vi.is_start) finalType='gray';
+        if(vi.is_end)   finalType='special';
+        let value=typeof vi.value==='number'?vi.value:0;
+        if(finalType==='red'&&value>0) value=-value;
+        return{type:finalType, value, icon:(vi.icon||'misc').toLowerCase()};
+      });
+      const grid=[];
+      for(let r=0;r<5;r++) grid.push(flat.slice(r*5,r*5+5));
+
+      shots[i].grid=grid;
+      shots[i].startPos=findType(grid,'gray');
+      shots[i].endPos=findType(grid,'special');
+
+      // Step 5: Solve
       showLoad(`Screenshot ${i+1}/${shots.length} — Solving Path…`,shots[i].fileName,'Running S → Flag optimizer');
       await tick();
       shots[i].result=shots[i].startPos&&shots[i].endPos
-        ? runDFS(shots[i].grid,shots[i].startPos,shots[i].endPos)
-        : {score:0,path:[],redLog:[],error:'S or Flag tile not found — AI may have misidentified them. Try re-uploading a clearer screenshot.'};
+        ? runDFS(grid,shots[i].startPos,shots[i].endPos)
+        : {score:0,path:[],redLog:[],error:'S or Flag tile not found'};
 
     }catch(e){
       console.error(e);
